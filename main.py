@@ -61,6 +61,10 @@ class OrderReceipt(BaseModel):
     chat_id: str
     image_url: str
 
+@app.get("/")
+def read_root():
+    return {"message": "🎉 Server ដំណើរការយ៉ាងរលូន! នេះគឺជា Food E-Commerce API."}
+
 @app.get("/api/orders")
 def get_orders():
     if USE_SUPABASE:
@@ -188,3 +192,8 @@ def delete_user(user_id: int):
     global users_db
     users_db = [user for user in users_db if user["id"] != user_id]
     return {"message": "User deleted successfully"}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
