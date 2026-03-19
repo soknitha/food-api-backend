@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydantic
+supabase
+requests
+pyTelegramBotAPI
+python-escpos
