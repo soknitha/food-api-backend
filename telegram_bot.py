@@ -4,7 +4,7 @@ import requests
 import os
 import io
 import qrcode
-import google.generativeai as genai
+from google import genai
 
 # ដាក់ Token របស់ Bot អ្នកដែលបានពី BotFather នៅទីនេះ
 BOT_TOKEN = "8704188082:AAEZmCT0yNJ9U3WNKte9E1SuJT0K4t4TOz0"
@@ -17,8 +17,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 # ---------------- ការកំណត់ AI Gemini ---------------- #
 # សូមទៅយក API Key ពី Google AI Studio មកជំនួសត្រង់នេះ
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "ដាក់_API_KEY_GEMINI_នៅទីនេះ")
-genai.configure(api_key=GEMINI_API_KEY)
-ai_model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Link ទៅកាន់ Mini App ដែលដំណើរការចេញពី Railway ផ្ទាល់
 MINI_APP_URL = "https://web-production-88028.up.railway.app/miniapp"
@@ -42,7 +41,7 @@ def send_welcome(message):
     btn_location = KeyboardButton("📍 ចែករំលែកទីតាំង", request_location=True)
     markup.add(btn_phone, btn_location)
 
-    bot.send_message(message.chat.id, "👋 **សួស្តី!** ដើម្បីងាយស្រួលក្នុងការដឹកជញ្ជូន និងទទួលបាន Promotion ពិសេសៗ សូមលោកអ្នកមេត្តាចុចប៊ូតុងខាងក្រោម ដើម្បីចែករំលែកព័ត៌មានមកកាន់ហាងយើងខ្ញុំ។", reply_markup=markup, parse_mode="Markdown")
+    bot.send_message(message.chat.id, "👋 *សួស្តី!* ដើម្បីងាយស្រួលក្នុងការដឹកជញ្ជូន និងទទួលបាន Promotion ពិសេសៗ សូមលោកអ្នកមេត្តាចុចប៊ូតុងខាងក្រោម ដើម្បីចែករំលែកព័ត៌មានមកកាន់ហាងយើងខ្ញុំ។", reply_markup=markup, parse_mode="Markdown")
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
@@ -90,7 +89,7 @@ def show_menu(call):
             btn_data = f"order_{item['id']}"
             markup.add(InlineKeyboardButton(btn_text, callback_data=btn_data))
             
-            caption = f"🍕 **{item['name']}**\n💰 តម្លៃ: **${item.get('price', 0.0):.2f}**"
+            caption = f"🍕 *{item['name']}*\n💰 តម្លៃ: *${item.get('price', 0.0):.2f}*"
             img_url = item.get('image_url')
             
             if img_url and img_url.strip() != "":
@@ -131,7 +130,7 @@ def add_to_cart(call):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("🛍 មើលកន្ត្រក និងគិតលុយ", callback_data="view_cart"))
             markup.add(InlineKeyboardButton("🍕 បន្តកុម្ម៉ង់មុខម្ហូបផ្សេងទៀត", callback_data="show_menu"))
-            bot.send_message(chat_id, f"🛒 បច្ចុប្បន្នអ្នកមាន **{len(user_carts[chat_id])}** មុខម្ហូបក្នុងកន្ត្រក។", reply_markup=markup, parse_mode="Markdown")
+            bot.send_message(chat_id, f"🛒 បច្ចុប្បន្នអ្នកមាន *{len(user_carts[chat_id])}* មុខម្ហូបក្នុងកន្ត្រក។", reply_markup=markup, parse_mode="Markdown")
         else:
             bot.answer_callback_query(call.id, "❌ រកមិនឃើញមុខម្ហូបនេះទេ!")
     except Exception as e:
@@ -145,7 +144,7 @@ def view_cart(call):
         bot.answer_callback_query(call.id, "កន្ត្រករបស់អ្នកទទេស្អាត!", show_alert=True)
         return
         
-    text = "🛒 **កន្ត្រកទំនិញរបស់អ្នក៖**\n\n"
+    text = "🛒 *កន្ត្រកទំនិញរបស់អ្នក៖*\n\n"
     total = 0
     item_counts = {}
     for item in cart:
@@ -155,7 +154,7 @@ def view_cart(call):
     for name, qty in item_counts.items():
         text += f"▪️ {name}  x{qty}\n"
         
-    text += f"\n💰 **សរុប៖ ${total:.2f}**"
+    text += f"\n💰 *សរុប៖ ${total:.2f}*"
     
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("✅ បញ្ជាក់ការកុម្ម៉ង់ (Checkout)", callback_data="checkout"))
@@ -212,12 +211,12 @@ def checkout(call):
                 pass
 
             payment_text = (
-                f"🎉 **អរគុណសម្រាប់ការកុម្ម៉ង់!**\n\n"
-                f"📋 **វិក្កយបត្ររបស់អ្នក៖**\n{items_str}\n"
-                f"💰 **សរុបប្រាក់ត្រូវបង់៖ ${total:.2f}**\n\n"
-                f"💳 **សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA ខាងក្រោម៖**\n"
-                f"• ឈ្មោះគណនី៖ **{aba_name}**\n"
-                f"• លេខគណនី៖ **{aba_number}**\n\n"
+                f"🎉 *អរគុណសម្រាប់ការកុម្ម៉ង់!*\n\n"
+                f"📋 *វិក្កយបត្ររបស់អ្នក៖*\n{items_str}\n"
+                f"💰 *សរុបប្រាក់ត្រូវបង់៖ ${total:.2f}*\n\n"
+                f"💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA ខាងក្រោម៖*\n"
+                f"• ឈ្មោះគណនី៖ *{aba_name}*\n"
+                f"• លេខគណនី៖ *{aba_number}*\n\n"
                 f"📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។"
             )
             
@@ -253,7 +252,7 @@ def handle_payment_screenshot(message):
                 bot.reply_to(message, "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។ សូមចុច /start ដើម្បីធ្វើការកុម្ម៉ង់ជាមុនសិន។")
             else:
                 order_id = res_data.get("order_id", "Unknown")
-                bot.reply_to(message, f"✅ **ទទួលបានជោគជ័យ!**\n\nរូបភាពបង់ប្រាក់សម្រាប់ការកុម្ម៉ង់លេខ **{order_id}** ត្រូវបានបញ្ជូនទៅកាន់អ្នកលក់រួចរាល់។\n\nសូមរង់ចាំបន្តិច អាហាររបស់អ្នកនឹងរៀបចំជូនក្នុងពេលឆាប់ៗនេះ។ 🛵", parse_mode="Markdown")
+                bot.reply_to(message, f"✅ *ទទួលបានជោគជ័យ!*\n\nរូបភាពបង់ប្រាក់សម្រាប់ការកុម្ម៉ង់លេខ *{order_id}* ត្រូវបានបញ្ជូនទៅកាន់អ្នកលក់រួចរាល់។\n\nសូមរង់ចាំបន្តិច អាហាររបស់អ្នកនឹងរៀបចំជូនក្នុងពេលឆាប់ៗនេះ។ 🛵", parse_mode="Markdown")
         else:
             bot.reply_to(message, "❌ សូមអភ័យទោស ប្រព័ន្ធមិនអាចភ្ជាប់ទៅកាន់ Admin បានទេពេលនេះ។")
     except Exception as e:
@@ -284,7 +283,10 @@ def echo_all(message):
     try:
         bot.send_chat_action(message.chat.id, 'typing')
         prompt = f"អ្នកគឺជាជំនួយការ AI ដ៏ឆ្លាតវៃរបស់ហាងអាហារ '小月小吃'។ សូមឆ្លើយតបយ៉ាងរាក់ទាក់ ជាភាសាខ្មែរ ទៅកាន់អតិថិជន។\n\nសំណួរអតិថិជន: {message.text}"
-        response = ai_model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt
+        )
         
         bot.reply_to(message, response.text)
     except Exception as e:

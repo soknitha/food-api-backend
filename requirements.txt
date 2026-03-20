@@ -1,11 +1,9 @@
 fastapi
 uvicorn
-pydantic
-supabase
-requests
 pyTelegramBotAPI
-python-escpos
-google-generativeai
-reportlab
+requests
+pydantic
 qrcode
 pillow
+google-genai
+supabase

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import os
 import io
 import qrcode
@@ -9,7 +10,17 @@ from supabase import create_client, Client
 import telebot
 from telegram_bot import bot
 
-app = FastAPI(title="Food E-Commerce API")
+# ---------------- ភ្ជាប់ Webhook របស់ Telegram Bot ---------------- #
+WEBHOOK_URL = "https://web-production-88028.up.railway.app/webhook"
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    bot.remove_webhook()
+    bot.set_webhook(url=WEBHOOK_URL)
+    print(f"✅ Webhook ត្រូវបានភ្ជាប់ទៅកាន់: {WEBHOOK_URL}")
+    yield
+
+app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
 
 # ដាក់ Token របស់ Bot សម្រាប់ផ្ញើសារចេញពី Server ត្រឡប់ទៅអតិថិជនវិញ
 BOT_TOKEN = "8704188082:AAEZmCT0yNJ9U3WNKte9E1SuJT0K4t4TOz0"
@@ -105,23 +116,14 @@ class AppConfig(BaseModel):
 def read_root():
     return {"message": "🎉 Server ដំណើរការយ៉ាងរលូន! នេះគឺជា Food E-Commerce API."}
 
-# ---------------- ភ្ជាប់ Webhook របស់ Telegram Bot ---------------- #
-WEBHOOK_URL = "https://web-production-88028.up.railway.app/webhook"
-
-@app.on_event("startup")
-async def startup_event():
-    bot.remove_webhook()
-    bot.set_webhook(url=WEBHOOK_URL)
-    print(f"✅ Webhook ត្រូវបានភ្ជាប់ទៅកាន់: {WEBHOOK_URL}")
 
 @app.post("/webhook")
-async def handle_webhook(request: Request):
-    if request.headers.get("content-type") == "application/json":
-        json_string = await request.body()
-        update = telebot.types.Update.de_json(json_string.decode("utf-8"))
-        bot.process_new_updates([update])
-        return {"status": "ok"}
-    raise HTTPException(status_code=400, detail="Invalid Content-Type")
+def handle_webhook(update_dict: dict):
+    import json
+    json_string = json.dumps(update_dict)
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return {"status": "ok"}
 
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
 @app.get("/miniapp", response_class=HTMLResponse)
@@ -164,7 +166,7 @@ def create_order(order: OrderCreate):
     # បាញ់សារទៅ Group ផ្ទះបាយ
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
-        kitchen_msg = f"🧑‍🍳 **មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)**\n\n🧾 **វិក្កយបត្រ:** `{new_order['id']}`\n🛒 **មុខម្ហូប:**\n{new_order['items'].replace(', ', '%0A')}"
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}"
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
         
     return new_order
@@ -205,20 +207,20 @@ def miniapp_checkout(order: OrderCreate):
     # បាញ់សារទៅ Group ផ្ទះបាយ
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
-        kitchen_msg = f"🧑‍🍳 **មានការកុម្ម៉ង់ថ្មី (ពី Mini App)**\n\n🧾 **វិក្កយបត្រ:** `{new_order['id']}`\n🛒 **មុខម្ហូប:**\n{new_order['items'].replace(', ', '%0A')}"
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Mini App)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}"
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
 
     # ផ្ញើសារវិក្កយបត្រ រួមជាមួយ QR Code ទៅកាន់អតិថិជន
     if order.chat_id:
         payment_text = (
-            f"🎉 **ការកុម្ម៉ង់ទទួលបានជោគជ័យ!**\n\n"
-            f"🧾 **លេខវិក្កយបត្រ:** `{new_order['id']}`\n"
-            f"👤 **អតិថិជន:** {new_order['customer']}\n"
-            f"🛒 **មុខម្ហូប:**\n{new_order['items'].replace(', ', '%0A')}\n\n"
-            f"💰 **សរុបប្រាក់ត្រូវបង់:** {new_order['total']}\n\n"
-            f"💳 **សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA ខាងក្រោម៖**\n"
-            f"• ឈ្មោះគណនី៖ **{app_config_db['aba_name']}**\n"
-            f"• លេខគណនី៖ **{app_config_db['aba_number']}**\n\n"
+            f"🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n"
+            f"🧾 *លេខវិក្កយបត្រ:* `{new_order['id']}`\n"
+            f"👤 *អតិថិជន:* {new_order['customer']}\n"
+            f"🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}\n\n"
+            f"💰 *សរុបប្រាក់ត្រូវបង់:* {new_order['total']}\n\n"
+            f"💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA ខាងក្រោម៖*\n"
+            f"• ឈ្មោះគណនី៖ *{app_config_db['aba_name']}*\n"
+            f"• លេខគណនី៖ *{app_config_db['aba_number']}*\n\n"
             f"📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។"
         )
         
@@ -252,7 +254,7 @@ def update_order_status(status_update: OrderStatusUpdate):
     if order:
         # បាញ់សារទៅប្រាប់អតិថិជនតាម Telegram ពេល Admin ប្តូរស្ថានភាព
         if order.get("chat_id"):
-            msg_text = f"🔔 **ជម្រាបសួរ {order['customer']}**\nការកុម្ម៉ង់លេខ {order['id']} របស់អ្នកត្រូវបានប្តូរស្ថានភាពទៅជា៖ **{status_update.status}**"
+            msg_text = f"🔔 *ជម្រាបសួរ {order['customer']}*\nការកុម្ម៉ង់លេខ {order['id']} របស់អ្នកត្រូវបានប្តូរស្ថានភាពទៅជា៖ *{status_update.status}*"
             requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": msg_text, "parse_mode": "Markdown"})
             
         # ---------------- មុខងារ Loyalty Points ---------------- #
@@ -287,16 +289,16 @@ def update_order_status(status_update: OrderStatusUpdate):
                             user_id_counter += 1
 
                     if order.get("chat_id"):
-                        pts_msg = f"🎁 **អបអរសាទរ!** អ្នកទទួលបាន **{points_earned} ពិន្ទុសន្សំ** ពីការទិញនេះ។\nបច្ចុប្បន្នអ្នកមានពិន្ទុសរុប៖ **{new_points} ពិន្ទុ** 🌟"
+                        pts_msg = f"🎁 *អបអរសាទរ!* អ្នកទទួលបាន *{points_earned} ពិន្ទុសន្សំ* ពីការទិញនេះ។\nបច្ចុប្បន្នអ្នកមានពិន្ទុសរុប៖ *{new_points} ពិន្ទុ* 🌟"
                         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": pts_msg, "parse_mode": "Markdown"})
                         
                         # ---- ផ្ញើសារ Promotion ដោយស្វ័យប្រវត្តិ ---- #
                         old_points = new_points - points_earned
                         if new_points >= 50 and old_points < 50:
-                            promo_msg = "🎉 **កាដូពិសេសពីហាង 小月小吃!**\n\nអ្នកសន្សំបាន ៥០ ពិន្ទុហើយ! 🎁\nយើងខ្ញុំសូមជូន **ភេសជ្ជៈ ១ កែវ ឥតគិតថ្លៃ** សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
+                            promo_msg = "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអ្នកសន្សំបាន ៥០ ពិន្ទុហើយ! 🎁\nយើងខ្ញុំសូមជូន *ភេសជ្ជៈ ១ កែវ ឥតគិតថ្លៃ* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
                             requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
                         elif new_points >= 100 and old_points < 100:
-                            promo_msg = "🎉 **កាដូពិសេសពីហាង 小月小吃!**\n\nអស្ចារ្យណាស់! អ្នកសន្សំបាន ១០០ ពិន្ទុ! 🎁\nយើងខ្ញុំសូមជូន **ការបញ្ចុះតម្លៃ $5.00** សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
+                            promo_msg = "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអស្ចារ្យណាស់! អ្នកសន្សំបាន ១០០ ពិន្ទុ! 🎁\nយើងខ្ញុំសូមជូន *ការបញ្ចុះតម្លៃ $5.00* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
                             requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
             except Exception as e:
                 print("Error adding points:", e)
