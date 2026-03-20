@@ -77,18 +77,21 @@ def send_welcome(message):
         InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")
     )
 
-    # លុប Keyboard ចាស់ៗចោលមុននឹងបង្ហាញភាសា ដើម្បីបិទប្រអប់វាយអក្សរ
-    bot.send_message(message.chat.id, "🌐 សូមជ្រើសរើសភាសា\n🌐 请选择语言\n🌐 Please select your language:", reply_markup=ReplyKeyboardRemove())
-    bot.send_message(message.chat.id, "👇", reply_markup=markup)
+    # លុប Keyboard ចាស់ៗចោល ដោយប្រើសារបណ្ដោះអាសន្ន
+    del_msg = bot.send_message(message.chat.id, "🔄", reply_markup=ReplyKeyboardRemove())
+    try: bot.delete_message(message.chat.id, del_msg.message_id)
+    except: pass
+
+    bot.send_message(message.chat.id, "🌐 សូមជ្រើសរើសភាសា\n🌐 请选择语言\n🌐 Please select your language:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data in ["lang_km", "lang_zh", "lang_en"])
 def set_language(call):
+    bot.answer_callback_query(call.id) # ប្រាប់ Telegram ថាទទួលបានការចុច
     lang = call.data.split("_")[1]
     chat_id = call.message.chat.id
     user_langs[chat_id] = lang
     
     try:
-        bot.delete_message(chat_id, call.message.message_id - 1) # លុបសារអក្សរ
         bot.delete_message(chat_id, call.message.message_id)     # លុបប៊ូតុង
     except:
         pass
@@ -98,14 +101,13 @@ def set_language(call):
 def show_main_menu(chat_id, lang="km"):
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
     
-    bot.send_message(chat_id, texts["welcome"], parse_mode="Markdown")
-    
     markup = InlineKeyboardMarkup(row_width=1)
     btn_mini_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=f"{MINI_APP_URL}"))
     btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
     markup.add(btn_mini_app, btn_support)
     
-    bot.send_message(chat_id, texts["choose"], reply_markup=markup, parse_mode="Markdown")
+    full_text = f"{texts['welcome']}\n\n{texts['choose']}"
+    bot.send_message(chat_id, full_text, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "show_menu")
 def show_menu(call):

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小月小吃 - Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: var(--tg-theme-bg-color, #f4f6f9); color: var(--tg-theme-text-color, #2c3e50); text-align: center; }
+        .banner { width: 100%; height: 180px; object-fit: cover; border-bottom: 3px solid #e74c3c; }
+        .closed-msg { color: #e74c3c; font-weight: bold; margin-top: 50px; font-size: 18px; display: none; }
+        .menu-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; padding: 15px; }
+        .card { background: var(--tg-theme-secondary-bg-color, white); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; }
+        .card img { width: 100%; height: 120px; object-fit: cover; border-bottom: 1px solid #eee; }
+        .card-body { padding: 10px; display: flex; flex-direction: column; flex-grow: 1; }
+        .card-title { font-size: 16px; font-weight: bold; margin: 0 0 5px 0; }
+        .card-price { color: #27ae60; font-weight: bold; font-size: 15px; margin: 0 0 10px 0; }
+        .btn-add { margin-top: auto; background-color: var(--tg-theme-button-color, #3498db); color: var(--tg-theme-button-text-color, white); border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-ctrl { background-color: #ecf0f1; border: 1px solid #bdc3c7; color: #2c3e50; border-radius: 6px; padding: 8px 12px; font-weight: bold; cursor: pointer; }
+        .loader { padding: 20px; color: gray; }
+    </style>
+</head>
+<body>
+    <img id="shopBanner" class="banner" src="" alt="Shop Banner" style="display:none;">
+    <div id="closedMessage" class="closed-msg">⛔ សុំទោស! ហាងរបស់យើងកំពុងផ្អាកទទួលការកុម្ម៉ង់បណ្ដោះអាសន្ន។</div>
+    
+    <div id="pointsContainer" style="display:none; background: #e8f8f5; margin: 15px; padding: 10px; border-radius: 8px; border: 1px solid #1abc9c;">
+        🎁 អ្នកមាន <span id="userPoints" style="font-weight:bold; color:#16a085;">0</span> ពិន្ទុសន្សំ<br>
+        <label style="display: flex; align-items: center; justify-content: center; margin-top: 10px; font-weight: bold; color: #2c3e50;">
+            <input type="checkbox" id="usePointsCb" onchange="updateCartTotal()" style="width: 18px; height: 18px; margin-right: 8px;">
+            <span id="lblRewardText">ប្តូរ 50 ពិន្ទុ យកការបញ្ចុះតម្លៃ $5.00</span>
+        </label>
+    </div>
+
+    <div id="shopContent">
+        <h3 style="margin: 15px 0;">🍕 មុខម្ហូបប្រចាំហាង</h3>
+        <div id="loading" class="loader">កំពុងទាញយកមុខម្ហូប... ⏳</div>
+        <div class="menu-container" id="menuList"></div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // កំណត់ API ទៅកាន់ Railway ផ្ទាល់
+        const API_URL = "https://web-production-88028.up.railway.app/api";
+        let cart = {}; // រក្សាទុកទម្រង់ { "ឈ្មោះម្ហូប": {price: 2.5, qty: 1} }
+        let userPoints = 0;
+        const chatId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
+        let rewardPoints = 50;
+        let rewardDiscount = 5.0;
+
+        async function initApp() {
+            try {
+                const configRes = await fetch(`${API_URL}/config`);
+                const config = await configRes.json();
+
+                rewardPoints = config.reward_points || 50;
+                rewardDiscount = config.reward_discount || 5.0;
+                document.getElementById("lblRewardText").innerText = `ប្តូរ ${rewardPoints} ពិន្ទុ យកការបញ្ចុះតម្លៃ $${rewardDiscount.toFixed(2)}`;
+
+                const bannerImg = document.getElementById("shopBanner");
+                if (config.banner_url) {
+                    bannerImg.src = config.banner_url;
+                    bannerImg.style.display = "block";
+                }
+
+                if (config.is_open === false) {
+                    document.getElementById("shopContent").style.display = "none";
+                    document.getElementById("closedMessage").style.display = "block";
+                } else {
+                    loadMenu();
+                    
+                    // ៣. ទាញយកពិន្ទុអតិថិជន
+                    if (chatId) {
+                        const ptsRes = await fetch(`${API_URL}/users/${chatId}/points`);
+                        const ptsData = await ptsRes.json();
+                        userPoints = ptsData.points || 0;
+                        if (userPoints >= rewardPoints) {
+                            document.getElementById("userPoints").innerText = userPoints;
+                            document.getElementById("pointsContainer").style.display = "block";
+                        }
+                    }
+                }
+            } catch (error) {
+                document.getElementById("loading").innerHTML = "❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ។";
+            }
+        }
+
+        async function loadMenu() {
+            try {
+                const res = await fetch(`${API_URL}/menu`);
+                const menuItems = await res.json();
+                
+                const menuList = document.getElementById("menuList");
+                document.getElementById("loading").style.display = "none";
+
+                if (menuItems.length === 0) {
+                    menuList.innerHTML = "<p style='grid-column: 1/-1;'>មិនមានមុខម្ហូបទេនាពេលនេះ។</p>";
+                    return;
+                }
+
+                menuItems.forEach(item => {
+                    const imgUrl = item.image_url ? item.image_url : "https://via.placeholder.com/300x200?text=No+Image";
+                    const price = parseFloat(item.price).toFixed(2);
+                    const safeName = item.name.replace(/\s+/g, '-');
+                    
+                    const card = document.createElement("div");
+                    card.className = "card";
+                    card.innerHTML = `
+                        <img src="${imgUrl}" alt="${item.name}">
+                        <div class="card-body">
+                            <p class="card-title">${item.name}</p>
+                            <p class="card-price">$${price}</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
+                                <button class="btn-ctrl" onclick="updateCart('${item.name}', ${item.price}, -1)">➖</button>
+                                <span id="qty-${safeName}" style="font-weight: bold; font-size: 16px;">0</span>
+                                <button class="btn-ctrl" onclick="updateCart('${item.name}', ${item.price}, 1)">➕</button>
+                            </div>
+                        </div>
+                    `;
+                    menuList.appendChild(card);
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        window.updateCart = function(name, price, change) {
+            const safeName = name.replace(/\s+/g, '-');
+            if (!cart[name]) {
+                cart[name] = { price: parseFloat(price), qty: 0 };
+            }
+            
+            cart[name].qty += change;
+            
+            if (cart[name].qty <= 0) {
+                delete cart[name];
+                document.getElementById(`qty-${safeName}`).innerText = "0";
+            } else {
+                document.getElementById(`qty-${safeName}`).innerText = cart[name].qty;
+            }
+            
+            updateCartTotal();
+            tg.HapticFeedback.impactOccurred('light');
+        };
+
+        window.updateCartTotal = function() {
+            let total = 0;
+            let totalQty = 0;
+            for (let key in cart) {
+                total += cart[key].price * cart[key].qty;
+                totalQty += cart[key].qty;
+            }
+            
+            if (document.getElementById("usePointsCb")?.checked && userPoints >= rewardPoints) {
+                total -= rewardDiscount;
+                if (total < 0) total = 0;
+            }
+
+            if (totalQty > 0) {
+                tg.MainButton.text = `🛍 មើលកន្ត្រក និងគិតលុយ - $${total.toFixed(2)}`;
+                tg.MainButton.show();
+            } else {
+                tg.MainButton.hide();
+            }
+        };
+
+        tg.MainButton.onClick(async () => {
+            let total = Object.values(cart).reduce((sum, item) => sum + (item.price * item.qty), 0);
+            let redeemPts = 0;
+            if (document.getElementById("usePointsCb")?.checked && userPoints >= rewardPoints) {
+                total -= rewardDiscount;
+                if (total < 0) total = 0;
+                redeemPts = rewardPoints;
+            }
+            
+            const itemsStr = Object.entries(cart).map(([name, data]) => `${name} x${data.qty}`).join(", ");
+            const customerName = tg.initDataUnsafe?.user?.first_name || "អតិថិជន Mini App";
+
+            try {
+                tg.MainButton.showProgress();
+                const response = await fetch(`${API_URL}/miniapp/checkout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer: customerName, items: itemsStr, total: `$${total.toFixed(2)}`, chat_id: chatId, redeem_points: redeemPts })
+                });
+                if(response.ok) {
+                    tg.showAlert("✅ ការកុម្ម៉ង់ជោគជ័យ! សូមឆែកមើល Telegram របស់អ្នក។", () => { tg.close(); });
+                } else {
+                    tg.showAlert("❌ មានបញ្ហាក្នុងការបញ្ជូន។");
+                }
+            } catch(e) {
+                tg.showAlert("❌ មិនអាចភ្ជាប់ទៅ Server បានទេ។");
+            } finally {
+                tg.MainButton.hideProgress();
+            }
+        });
+
+        initApp();
+    </script>
+</body>
+</html>
