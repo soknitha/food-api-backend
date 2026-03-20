@@ -414,6 +414,17 @@ def delete_user(user_id: str):
     users_db = [user for user in users_db if str(user["id"]) != user_id]
     return {"message": "User deleted successfully"}
 
+# ---------------- ទាញយកព័ត៌មាន User ម្នាក់ ---------------- #
+@app.get("/api/users/{user_id}")
+def get_user(user_id: str):
+    if USE_SUPABASE:
+        res = supabase.table("users").select("*").eq("id", user_id).execute()
+        if res.data: return res.data[0]
+    else:
+        for u in users_db:
+            if str(u.get("id")) == user_id or str(u.get("chat_id")) == user_id: return u
+    return {}
+
 # ---------------- ទាញយកពិន្ទុអតិថិជនតាម Chat ID ---------------- #
 @app.get("/api/users/{chat_id}/points")
 def get_user_points(chat_id: str):
@@ -430,11 +441,25 @@ def get_user_points(chat_id: str):
 # ---------------- Dynamic Mini App Config ---------------- #
 @app.get("/api/config")
 def get_config():
+    if USE_SUPABASE:
+        try:
+            res = supabase.table("config").select("*").eq("id", 1).execute()
+            if res.data:
+                return {**app_config_db, **res.data[0]} # បញ្ចូលទិន្នន័យពី DB ទៅលើសភាពដើម
+        except Exception as e:
+            print("Error fetching config:", e)
     return app_config_db
 
 @app.post("/api/config")
 def update_config(config: AppConfig):
     app_config_db.update(config.dict())
+    if USE_SUPABASE:
+        try:
+            res = supabase.table("config").select("id").eq("id", 1).execute()
+            if res.data: supabase.table("config").update(config.dict()).eq("id", 1).execute()
+            else: supabase.table("config").insert({"id": 1, **config.dict()}).execute()
+        except Exception as e:
+            print("Error saving config:", e)
     return app_config_db
 
 # ---------------- Live Chat CRM & Broadcast ---------------- #
@@ -443,12 +468,26 @@ def add_crm_message(msg: ChatMessage):
     from datetime import datetime
     record = msg.dict()
     record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-    crm_messages_db.append(record)
+        if USE_SUPABASE:
+            try:
+                supabase.table("crm_messages").insert(record).execute()
+            except Exception as e:
+                print("Error saving CRM message:", e)
+        else:
+            crm_messages_db.append(record)
     return {"status": "ok"}
 
 @app.get("/api/crm/messages")
 def get_crm_messages():
-    return crm_messages_db[-100:] # យកត្រឹម 100 សារចុងក្រោយ
+    if USE_SUPABASE:
+        try:
+            # ទាញយក 100 សារចុងក្រោយបំផុត
+            res = supabase.table("crm_messages").select("*").order("id", desc=True).limit(100).execute()
+            if res.data:
+                return res.data[::-1] # ត្រឡប់បញ្ច្រាសមកវិញដើម្បីឱ្យសារចាស់នៅខាងលើ
+        except Exception as e:
+            print("Error fetching CRM messages:", e)
+    return crm_messages_db[-100:]
 
 @app.post("/api/crm/reply")
 def reply_crm_message(msg: ChatMessage):
@@ -463,7 +502,13 @@ def reply_crm_message(msg: ChatMessage):
     record = msg.dict()
     record["is_admin"] = True
     record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-    crm_messages_db.append(record)
+    if USE_SUPABASE:
+        try:
+            supabase.table("crm_messages").insert(record).execute()
+        except Exception as e:
+            print("Error saving CRM reply:", e)
+    else:
+        crm_messages_db.append(record)
     return {"status": "ok"}
 
 @app.get("/api/crm/ai_status/{chat_id}")
