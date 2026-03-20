@@ -5,3 +5,7 @@ supabase
 requests
 pyTelegramBotAPI
 python-escpos
+google-generativeai
+reportlab
+qrcode
+pillow
