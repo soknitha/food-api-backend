@@ -29,14 +29,16 @@ app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
 BOT_TOKEN = "8704188082:AAEZmCT0yNJ9U3WNKte9E1SuJT0K4t4TOz0"
 
 # ---------------- ការកំណត់ Supabase Database ---------------- #
-SUPABASE_URL = os.getenv("SUPABASE_URL", "ដាក់_URL_SUPABASE_របស់អ្នកទីនេះ")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "ដាក់_KEY_SUPABASE_របស់អ្នកទីនេះ")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://rqiakbzssjavyxbfcqhy.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_G-_DBDUFf5i-A70bj6NrAA_yH-ZgYG1")
 
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     USE_SUPABASE = True
+    print("✅ ភ្ជាប់ទៅកាន់ Supabase ដោយជោគជ័យ! ទិន្នន័យនឹងត្រូវបានរក្សាទុកជានិរន្តរ៍។")
 except Exception as e:
     USE_SUPABASE = False
+    print(f"❌ មិនអាចភ្ជាប់ទៅកាន់ Supabase បានទេ: {e}")
 
 # ទិន្នន័យសាកល្បង (Mock Database ក្នុង Memory)
 orders_db = [
@@ -79,6 +81,7 @@ class UserItem(BaseModel):
     name: str
     phone: str = "N/A"
     location: str = ""
+    language: str = ""
 
 class OrderCreate(BaseModel):
     customer: str
@@ -144,7 +147,7 @@ def serve_miniapp():
 @app.get("/api/orders")
 def get_orders():
     if USE_SUPABASE:
-        response = supabase.table("orders").select("*").execute()
+        response = supabase.table("orders").select("*").order("created_at").execute()
         return response.data
     return orders_db
 
@@ -273,14 +276,18 @@ def update_order_status(status_update: OrderStatusUpdate):
                 if points_earned > 0:
                     new_points = 0
                     if USE_SUPABASE:
-                        res = supabase.table("users").select("*").eq("id", order["chat_id"]).execute()
+                        user_chat_id = order.get("chat_id")
+                        if not user_chat_id:
+                            import random
+                            user_chat_id = f"manual_{random.randint(10000, 99999)}"
+                        res = supabase.table("users").select("*").eq("id", user_chat_id).execute()
                         if res.data:
                             user_id = res.data[0]['id']
                             new_points = res.data[0].get('points', 0) + points_earned
                             supabase.table("users").update({"points": new_points}).eq("id", user_id).execute()
                         else:
                             new_points = points_earned
-                            supabase.table("users").insert({"id": order.get("chat_id", ""), "name": order["customer"], "phone": "N/A", "points": points_earned, "chat_id": order.get("chat_id", "")}).execute()
+                            supabase.table("users").insert({"id": user_chat_id, "name": order["customer"], "phone": "N/A", "points": points_earned, "chat_id": user_chat_id}).execute()
                     else:
                         user_found = False
                         for u in users_db:
@@ -333,7 +340,7 @@ def upload_receipt(data: OrderReceipt):
 @app.get("/api/menu")
 def get_menu():
     if USE_SUPABASE:
-        response = supabase.table("menu").select("*").execute()
+        response = supabase.table("menu").select("*").order("id").execute()
         return response.data
     return menu_db
 
@@ -379,10 +386,11 @@ def add_user(user: UserItem):
             update_data = {"name": user.name}
             if user.phone and user.phone != "N/A": update_data["phone"] = user.phone
             if user.location: update_data["location"] = user.location
+            if user.language: update_data["language"] = user.language
             response = supabase.table("users").update(update_data).eq("id", user_id_str).execute()
             return response.data[0] if response.data else None
         else:
-            response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", "")}).execute()
+            response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", ""), "language": user.language or "km"}).execute()
             return response.data[0] if response.data else None
             
     for u in users_db:
@@ -390,19 +398,20 @@ def add_user(user: UserItem):
             u["name"] = user.name
             if user.phone and user.phone != "N/A": u["phone"] = user.phone
             if user.location: u["location"] = user.location
+            if user.language: u["language"] = user.language
             return u
             
-    new_user = {"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", "")}
+    new_user = {"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", ""), "language": user.language or "km"}
     users_db.append(new_user)
     return new_user
 
 @app.delete("/api/users/{user_id}")
-def delete_user(user_id: int):
+def delete_user(user_id: str):
     if USE_SUPABASE:
         supabase.table("users").delete().eq("id", user_id).execute()
         return {"message": "User deleted successfully"}
     global users_db
-    users_db = [user for user in users_db if user["id"] != user_id]
+    users_db = [user for user in users_db if str(user["id"]) != user_id]
     return {"message": "User deleted successfully"}
 
 # ---------------- ទាញយកពិន្ទុអតិថិជនតាម Chat ID ---------------- #

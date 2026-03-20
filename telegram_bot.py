@@ -65,7 +65,11 @@ def send_welcome(message):
     user_name = message.from_user.first_name or "N/A"
     
     try:
-        requests.post(f"{API_BASE_URL}/users", json={"id": user_id, "name": user_name, "phone": "N/A", "location": ""})
+        response = requests.post(f"{API_BASE_URL}/users", json={"id": user_id, "name": user_name, "phone": "N/A", "location": ""})
+        if response.status_code == 200:
+            user_data = response.json()
+            if user_data and "language" in user_data:
+                user_langs[message.chat.id] = user_data["language"]
     except Exception as e:
         print("Error saving initial user:", e)
 
@@ -91,6 +95,12 @@ def set_language(call):
     chat_id = call.message.chat.id
     user_langs[chat_id] = lang
     
+    # រក្សាទុកភាសាចូល Database តាមរយៈ API ដើម្បីឱ្យមាននិរន្តរភាព
+    try:
+        requests.post(f"{API_BASE_URL}/users", json={"id": str(chat_id), "name": call.from_user.first_name or "N/A", "language": lang})
+    except Exception as e:
+        print("Error saving language to API:", e)
+
     try:
         bot.delete_message(chat_id, call.message.message_id)     # លុបប៊ូតុង
     except:
@@ -102,7 +112,8 @@ def show_main_menu(chat_id, lang="km"):
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
     
     markup = InlineKeyboardMarkup(row_width=1)
-    btn_mini_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=f"{MINI_APP_URL}?v=new"))
+    # បញ្ជូនជម្រើសភាសា (lang) ទៅកាន់ Mini App
+    btn_mini_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=f"{MINI_APP_URL}?v=new&lang={lang}"))
     btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
     markup.add(btn_mini_app, btn_support)
     
