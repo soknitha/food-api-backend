@@ -1,5 +1,5 @@
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardRemove
 import requests
 import os
 import io
@@ -25,6 +25,39 @@ MINI_APP_URL = "https://web-production-88028.up.railway.app/miniapp"
 # បង្កើតកន្ត្រកទំនិញសម្រាប់អតិថិជនម្នាក់ៗ (Shopping Cart)
 user_carts = {}
 
+# ---------------- ការកំណត់ភាសា (Language Settings) ---------------- #
+user_langs = {}
+
+LANG_DICT = {
+    "km": {
+        "welcome": "🌟 *សូមស្វាគមន៍មកកាន់ 小月小吃!*\n\nយើងខ្ញុំផ្តល់ជូននូវបទពិសោធន៍ម្ហូបអាហារដ៏ឈ្ងុយឆ្ងាញ់ ប្រកបដោយអនាម័យ និងស្តង់ដារគុណភាពខ្ពស់បំផុត។ សូមរីករាយជាមួយសេវាកម្មកុម្ម៉ង់អាហារឌីជីថលរបស់យើងខ្ញុំ។",
+        "choose": "👇 សូមជ្រើសរើសសេវាកម្មខាងក្រោម៖",
+        "order_app": "📱 កុម្ម៉ង់អាហារ (Order Food)",
+        "support": "🎧 ផ្នែកបម្រើអតិថិជន (Support)",
+        "no_text": "⚠️ សូមអភ័យទោស ប្រព័ន្ធរបស់យើងប្រើប្រាស់តែប៊ូតុងបញ្ជាប៉ុណ្ណោះ។ សូមចុច /start ដើម្បីបើកម៉ឺនុយឡើងវិញ។",
+        "receipt_ok": "✅ *ទទួលបានជោគជ័យ!*\n\nរូបភាពបង់ប្រាក់ត្រូវបានបញ្ជូនទៅកាន់អ្នកលក់រួចរាល់។ សូមរង់ចាំបន្តិច អាហាររបស់អ្នកនឹងរៀបចំជូនក្នុងពេលឆាប់ៗនេះ។ 🛵",
+        "receipt_fail": "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។"
+    },
+    "zh": {
+        "welcome": "🌟 *欢迎来到 小月小吃！*\n\n我们为您提供最卫生、高标准的美味佳肴。请享受我们便捷的数字化点餐服务。",
+        "choose": "👇 请选择以下服务：",
+        "order_app": "📱 开始点餐 (Order Food)",
+        "support": "🎧 客服支持 (Support)",
+        "no_text": "⚠️ 抱歉，本系统仅支持按钮操作。请点击 /start 重新打开菜单。",
+        "receipt_ok": "✅ *支付凭证已收到！*\n\n您的付款截图已发送给商家。请稍候，我们将尽快为您准备美食。 🛵",
+        "receipt_fail": "⚠️ 您当前没有待付款的订单，或您已经发送过凭证了。"
+    },
+    "en": {
+        "welcome": "🌟 *Welcome to Xiao Yue Xiao Chi!*\n\nWe provide a delicious culinary experience with the highest standards of hygiene and quality. Enjoy our seamless digital ordering service.",
+        "choose": "👇 Please select a service below:",
+        "order_app": "📱 Order Food",
+        "support": "🎧 Customer Support",
+        "no_text": "⚠️ Sorry, our system only accepts button interactions. Please click /start to reopen the menu.",
+        "receipt_ok": "✅ *Successfully Received!*\n\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
+        "receipt_fail": "⚠️ You have no pending orders awaiting payment, or you've already sent a receipt."
+    }
+}
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     # រក្សាទុកព័ត៌មាន User ដោយស្វ័យប្រវត្តិ
@@ -36,40 +69,43 @@ def send_welcome(message):
     except Exception as e:
         print("Error saving initial user:", e)
 
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    btn_phone = KeyboardButton("📱 ចែករំលែកលេខទូរស័ព្ទ", request_contact=True)
-    btn_location = KeyboardButton("📍 ចែករំលែកទីតាំង", request_location=True)
-    markup.add(btn_phone, btn_location)
+    # ជម្រើសភាសា (Language Selection)
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton("🇰🇭 ភាសាខ្មែរ", callback_data="lang_km"),
+        InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh"),
+        InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")
+    )
 
-    bot.send_message(message.chat.id, "👋 *សួស្តី!* ដើម្បីងាយស្រួលក្នុងការដឹកជញ្ជូន និងទទួលបាន Promotion ពិសេសៗ សូមលោកអ្នកមេត្តាចុចប៊ូតុងខាងក្រោម ដើម្បីចែករំលែកព័ត៌មានមកកាន់ហាងយើងខ្ញុំ។", reply_markup=markup, parse_mode="Markdown")
+    # លុប Keyboard ចាស់ៗចោលមុននឹងបង្ហាញភាសា ដើម្បីបិទប្រអប់វាយអក្សរ
+    bot.send_message(message.chat.id, "🌐 សូមជ្រើសរើសភាសា\n🌐 请选择语言\n🌐 Please select your language:", reply_markup=ReplyKeyboardRemove())
+    bot.send_message(message.chat.id, "👇", reply_markup=markup)
 
-@bot.message_handler(content_types=['contact'])
-def handle_contact(message):
-    if message.contact is not None:
-        user_id = str(message.from_user.id)
-        phone_number = message.contact.phone_number
-        requests.post(f"{API_BASE_URL}/users", json={"id": user_id, "name": message.from_user.first_name, "phone": phone_number})
-        bot.send_message(message.chat.id, "✅ អរគុណ! យើងបានទទួលលេខទូរស័ព្ទរបស់អ្នកហើយ។")
-        show_main_menu(message.chat.id)
+@bot.callback_query_handler(func=lambda call: call.data in ["lang_km", "lang_zh", "lang_en"])
+def set_language(call):
+    lang = call.data.split("_")[1]
+    chat_id = call.message.chat.id
+    user_langs[chat_id] = lang
+    
+    try:
+        bot.delete_message(chat_id, call.message.message_id - 1) # លុបសារអក្សរ
+        bot.delete_message(chat_id, call.message.message_id)     # លុបប៊ូតុង
+    except:
+        pass
+        
+    show_main_menu(chat_id, lang)
 
-@bot.message_handler(content_types=['location'])
-def handle_location(message):
-    if message.location is not None:
-        user_id = str(message.from_user.id)
-        # អាចប្រើ Google Maps API ដើម្បីបំប្លែង lat/lon ទៅជា Plus Code ពិតប្រាកដ
-        plus_code = f"{message.location.latitude},{message.location.longitude}" 
-        requests.post(f"{API_BASE_URL}/users", json={"id": user_id, "name": message.from_user.first_name, "phone": "N/A", "location": plus_code})
-        bot.send_message(message.chat.id, "✅ អរគុណ! យើងបានទទួលទីតាំងរបស់អ្នកហើយ។")
-        show_main_menu(message.chat.id)
-
-def show_main_menu(chat_id):
-    welcome_text = "ឥឡូវនេះ លោកអ្នកអាចចាប់ផ្តើមកុម្ម៉ង់អាហារបាន! 👇"
-    markup = InlineKeyboardMarkup()
-    btn_mini_app = InlineKeyboardButton("📱 បើកកម្មវិធីកុម្ម៉ង់ (Mini App)", web_app=WebAppInfo(url=f"{MINI_APP_URL}"))
-    btn_old_menu = InlineKeyboardButton("📜 មើលបញ្ជីមុខម្ហូបធម្មតា", callback_data="show_menu")
-    markup.add(btn_mini_app)
-    markup.add(btn_old_menu)
-    bot.send_message(chat_id, welcome_text, reply_markup=markup)
+def show_main_menu(chat_id, lang="km"):
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
+    
+    bot.send_message(chat_id, texts["welcome"], parse_mode="Markdown")
+    
+    markup = InlineKeyboardMarkup(row_width=1)
+    btn_mini_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=f"{MINI_APP_URL}"))
+    btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
+    markup.add(btn_mini_app, btn_support)
+    
+    bot.send_message(chat_id, texts["choose"], reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "show_menu")
 def show_menu(call):
@@ -238,60 +274,45 @@ def checkout(call):
 @bot.message_handler(content_types=['photo'])
 def handle_payment_screenshot(message):
     try:
-        chat_id = message.chat.id
+        chat_id = str(message.chat.id)
+        lang = user_langs.get(int(chat_id), "km")
+        texts = LANG_DICT.get(lang, LANG_DICT["km"])
+        
         photo_id = message.photo[-1].file_id # យករូបភាពដែលមានគុណភាពច្បាស់ជាងគេ
         file_info = bot.get_file(photo_id)
         file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
         
         # បញ្ជូន URL រូបភាពទៅកាន់ Backend API
-        response = requests.post(f"{API_BASE_URL}/orders/receipt", json={"chat_id": str(chat_id), "image_url": file_url})
+        response = requests.post(f"{API_BASE_URL}/orders/receipt", json={"chat_id": chat_id, "image_url": file_url})
         
         if response.status_code == 200:
             res_data = response.json()
             if "error" in res_data:
-                bot.reply_to(message, "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។ សូមចុច /start ដើម្បីធ្វើការកុម្ម៉ង់ជាមុនសិន។")
+                bot.reply_to(message, texts["receipt_fail"])
             else:
-                order_id = res_data.get("order_id", "Unknown")
-                bot.reply_to(message, f"✅ *ទទួលបានជោគជ័យ!*\n\nរូបភាពបង់ប្រាក់សម្រាប់ការកុម្ម៉ង់លេខ *{order_id}* ត្រូវបានបញ្ជូនទៅកាន់អ្នកលក់រួចរាល់។\n\nសូមរង់ចាំបន្តិច អាហាររបស់អ្នកនឹងរៀបចំជូនក្នុងពេលឆាប់ៗនេះ។ 🛵", parse_mode="Markdown")
+                bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
         else:
             bot.reply_to(message, "❌ សូមអភ័យទោស ប្រព័ន្ធមិនអាចភ្ជាប់ទៅកាន់ Admin បានទេពេលនេះ។")
     except Exception as e:
         bot.reply_to(message, "❌ មានកំហុសក្នុងការទទួលរូបភាព។")
 
-# បន្ថែមមុខងារឆ្លើយតបពេលអតិថិជនវាយអក្សរធម្មតា (ក្រៅពីពាក្យបញ្ជា /start)
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    # បញ្ជូនសារទៅកាន់ Live Chat CRM របស់ Admin
-    try:
-        requests.post(f"{API_BASE_URL}/crm/messages", json={
-            "chat_id": str(message.chat.id),
-            "user": message.from_user.first_name or "អតិថិជន",
-            "text": message.text
-        })
-    except:
-        pass
-
-    # ឆែកមើលថាតើ Admin កំពុងឆាតឬអត់ (បើកំពុងឆាត បិទ AI មិនឱ្យឆ្លើយតបទេ)
-    try:
-        status_res = requests.get(f"{API_BASE_URL}/crm/ai_status/{message.chat.id}")
-        if status_res.status_code == 200 and not status_res.json().get("ai_active", True):
-            return 
-    except:
-        pass
-
-    # AI-Powered Chat (ជំនួយការ AI Gemini)
-    try:
-        bot.send_chat_action(message.chat.id, 'typing')
-        prompt = f"អ្នកគឺជាជំនួយការ AI ដ៏ឆ្លាតវៃរបស់ហាងអាហារ '小月小吃'។ សូមឆ្លើយតបយ៉ាងរាក់ទាក់ ជាភាសាខ្មែរ ទៅកាន់អតិថិជន។\n\nសំណួរអតិថិជន: {message.text}"
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
+# បិទមុខងារវាយអក្សរបញ្ចូលក្នុង Bot (Block Text Messaging)
+@bot.message_handler(func=lambda message: True, content_types=['text'])
+def block_text(message):
+    if message.text.startswith('/start'):
+        return
         
-        bot.reply_to(message, response.text)
-    except Exception as e:
-        print("AI Error:", e)
-        bot.reply_to(message, "សុំទោស ខ្ញុំពុំយល់ពាក្យបញ្ជានេះទេ។ សូមចុចពាក្យបញ្ជា /start ដើម្បីចាប់ផ្តើមការកុម្ម៉ង់។")
+    chat_id = message.chat.id
+    lang = user_langs.get(chat_id, "km")
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
+    
+    try:
+        bot.delete_message(chat_id, message.message_id) # លុបសារដែលភ្ញៀវវាយចូល
+    except:
+        pass
+        
+    # លោតប្រាប់ថាប្រព័ន្ធប្រើបានតែប៊ូតុង
+    bot.send_message(chat_id, texts["no_text"])
 
 if __name__ == '__main__':
     print("🤖 Telegram Bot កំពុងដំណើរការ... (ចុច Ctrl+C ដើម្បីបិទ)")
