@@ -15,9 +15,12 @@ WEBHOOK_URL = "https://web-production-88028.up.railway.app/webhook"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    bot.remove_webhook()
-    bot.set_webhook(url=WEBHOOK_URL)
-    print(f"✅ Webhook ត្រូវបានភ្ជាប់ទៅកាន់: {WEBHOOK_URL}")
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=WEBHOOK_URL)
+        print(f"✅ Webhook ត្រូវបានភ្ជាប់ទៅកាន់: {WEBHOOK_URL}")
+    except Exception as e:
+        print(f"⚠️ ការព្រមាន Webhook: {e}")
     yield
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
@@ -120,9 +123,12 @@ def read_root():
 @app.post("/webhook")
 def handle_webhook(update_dict: dict):
     import json
-    json_string = json.dumps(update_dict)
-    update = telebot.types.Update.de_json(json_string)
-    bot.process_new_updates([update])
+    try:
+        json_string = json.dumps(update_dict)
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+    except Exception as e:
+        print(f"Error Processing Update: {e}")
     return {"status": "ok"}
 
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
