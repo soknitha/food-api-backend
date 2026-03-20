@@ -128,10 +128,12 @@ def handle_webhook(update_dict: dict):
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
 @app.get("/miniapp", response_class=HTMLResponse)
 def serve_miniapp():
-    if os.path.exists("index.html"):
-        with open("index.html", "r", encoding="utf-8") as f:
+    # ប្រើប្រាស់ទីតាំងពិតប្រាកដ (Absolute Path) ដើម្បីប្រាកដថាវារកឃើញឯកសារ index.html ជានិច្ច
+    html_path = os.path.join(os.path.dirname(__file__), "index.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
             return f.read()
-    return "<h1>កំពុងរៀបចំប្រព័ន្ធ... (មិនទាន់មានឯកសារ index.html)</h1>"
+    return "<h1>កំពុងរៀបចំប្រព័ន្ធ... រកមិនឃើញឯកសារ index.html ទេ</h1>"
 
 @app.get("/api/orders")
 def get_orders():
