@@ -1,9 +1,9 @@
 fastapi
 uvicorn
-pyTelegramBotAPI
+python-multipart
 requests
-pydantic
+supabase
+pyTelegramBotAPI
 qrcode
 pillow
 google-genai
-supabase

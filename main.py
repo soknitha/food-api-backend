@@ -375,11 +375,12 @@ def delete_menu(item_id: int):
 
 # ---------------- Upload រូបភាពមុខម្ហូប (JPG/PNG) ---------------- #
 @app.post("/api/upload")
-async def upload_image(file: UploadFile = File(...)):
+def upload_image(file: UploadFile = File(...)):
+    import shutil
     try:
         file_location = os.path.join(UPLOAD_DIR, file.filename)
         with open(file_location, "wb") as buffer:
-            buffer.write(await file.read())
+            shutil.copyfileobj(file.file, buffer)
         return {"image_url": f"https://web-production-88028.up.railway.app/static/uploads/{file.filename}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
