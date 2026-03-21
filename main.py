@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import os
@@ -24,6 +25,11 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
+
+# ---------------- កំណត់ទីតាំងរក្សាទុករូបភាព (Static Files) ---------------- #
+UPLOAD_DIR = "static/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ដាក់ Token របស់ Bot សម្រាប់ផ្ញើសារចេញពី Server ត្រឡប់ទៅអតិថិជនវិញ
 BOT_TOKEN = "8704188082:AAEZmCT0yNJ9U3WNKte9E1SuJT0K4t4TOz0"
@@ -366,6 +372,17 @@ def delete_menu(item_id: int):
     global menu_db
     menu_db = [item for item in menu_db if item["id"] != item_id]
     return {"message": "Item deleted successfully"}
+
+# ---------------- Upload រូបភាពមុខម្ហូប (JPG/PNG) ---------------- #
+@app.post("/api/upload")
+async def upload_image(file: UploadFile = File(...)):
+    try:
+        file_location = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_location, "wb") as buffer:
+            buffer.write(await file.read())
+        return {"image_url": f"https://web-production-88028.up.railway.app/static/uploads/{file.filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/users")
 def get_users():
