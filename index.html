@@ -4,37 +4,107 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>小月小吃 - Mini App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: var(--tg-theme-bg-color, #f4f6f9); color: var(--tg-theme-text-color, #2c3e50); text-align: center; }
-        .banner { width: 100%; height: 180px; object-fit: cover; border-bottom: 3px solid #e74c3c; }
-        .closed-msg { color: #e74c3c; font-weight: bold; margin-top: 50px; font-size: 18px; display: none; }
-        .menu-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; padding: 15px; }
-        .card { background: var(--tg-theme-secondary-bg-color, white); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; }
-        .card img { width: 100%; height: 120px; object-fit: cover; border-bottom: 1px solid #eee; }
-        .card-body { padding: 10px; display: flex; flex-direction: column; flex-grow: 1; }
-        .card-title { font-size: 16px; font-weight: bold; margin: 0 0 5px 0; }
-        .card-price { color: #27ae60; font-weight: bold; font-size: 15px; margin: 0 0 10px 0; }
-        .btn-add { margin-top: auto; background-color: var(--tg-theme-button-color, #3498db); color: var(--tg-theme-button-text-color, white); border: none; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-ctrl { background-color: #ecf0f1; border: 1px solid #bdc3c7; color: #2c3e50; border-radius: 6px; padding: 8px 12px; font-weight: bold; cursor: pointer; }
-        .loader { padding: 20px; color: gray; }
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #f7f9fc);
+            --text-color: var(--tg-theme-text-color, #1a1a1a);
+            --hint-color: var(--tg-theme-hint-color, #8a8a8a);
+            --card-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+            --primary-color: var(--tg-theme-button-color, #e74c3c);
+            --primary-text: var(--tg-theme-button-text-color, #ffffff);
+            --border-color: rgba(0, 0, 0, 0.08);
+        }
+        
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Kantumruy Pro', sans-serif; 
+            margin: 0; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 80px; /* Space for main button */
+        }
+        
+        /* Header Banner Area */
+        .header-section { position: relative; width: 100%; }
+        .banner { width: 100%; height: 180px; object-fit: cover; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .shop-title { position: absolute; bottom: 15px; left: 15px; color: white; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 18px; backdrop-filter: blur(5px); }
+        
+        /* Messages & Points */
+        .closed-msg { color: #e74c3c; font-weight: bold; margin-top: 50px; font-size: 18px; display: none; text-align: center; background: rgba(231, 76, 60, 0.1); padding: 20px; border-radius: 12px; margin: 20px; }
+        .points-card { background: linear-gradient(135deg, #00b09b, #96c93d); margin: 20px 15px; padding: 15px; border-radius: 16px; color: white; box-shadow: 0 4px 15px rgba(0, 176, 155, 0.3); display: none; transition: transform 0.3s; }
+        .points-title { font-size: 14px; opacity: 0.9; margin: 0 0 5px 0; }
+        .points-value { font-size: 24px; font-weight: 700; margin: 0; }
+        .points-toggle { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 10px; }
+        .points-toggle label { font-size: 14px; font-weight: 500; display: flex; align-items: center; cursor: pointer; width: 100%; }
+        .points-toggle input { width: 18px; height: 18px; margin-right: 10px; accent-color: #fff; }
+
+        /* Menu Section */
+        .section-title { margin: 25px 15px 15px; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .menu-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 0 15px; }
+        
+        /* Modern Card */
+        .card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
+        .card:active { transform: scale(0.97); }
+        .card-img-wrapper { position: relative; padding-top: 85%; overflow: hidden; }
+        .card img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        .card-body { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
+        .card-title { font-size: 15px; font-weight: 600; margin: 0 0 6px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-price { color: var(--primary-color); font-weight: 700; font-size: 16px; margin: 0 0 12px 0; }
+        
+        /* Quantity Controls */
+        .qty-controls { display: flex; justify-content: space-between; align-items: center; margin-top: auto; background: var(--bg-color); border-radius: 25px; padding: 4px; border: 1px solid var(--border-color); }
+        .btn-ctrl { background-color: var(--card-bg); border: none; color: var(--text-color); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size: 16px; transition: background 0.2s; }
+        .btn-ctrl:active { background-color: var(--hint-color); color: white; }
+        .btn-ctrl.add-btn { background-color: var(--primary-color); color: white; }
+        .qty-value { font-weight: 600; font-size: 15px; width: 30px; text-align: center; }
+
+        /* Add to Cart initial button */
+        .btn-initial-add { width: 100%; background: var(--primary-color); color: var(--primary-text); border: none; padding: 10px; border-radius: 12px; font-weight: 600; font-size: 14px; font-family: 'Kantumruy Pro', sans-serif; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: auto; }
+        .btn-initial-add:active { opacity: 0.8; }
+
+        /* Skeleton Loader */
+        .skeleton { background: linear-gradient(90deg, var(--card-bg) 25%, var(--bg-color) 50%, var(--card-bg) 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        .skeleton-card { border-radius: 16px; overflow: hidden; background: var(--card-bg); border: 1px solid var(--border-color); }
+        .skeleton-img { width: 100%; padding-top: 85%; }
+        .skeleton-text { height: 16px; margin: 12px; border-radius: 4px; width: 80%; }
+        .skeleton-price { height: 16px; margin: 0 12px 12px; border-radius: 4px; width: 50%; }
+        .skeleton-btn { height: 36px; margin: 12px; border-radius: 12px; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     </style>
 </head>
 <body>
-    <img id="shopBanner" class="banner" src="" alt="Shop Banner" style="display:none;">
+    <div class="header-section" id="headerSection" style="display:none;">
+        <img id="shopBanner" class="banner" src="" alt="Shop Banner">
+        <div class="shop-title">小月小吃 Xiao Yue</div>
+    </div>
+    
     <div id="closedMessage" class="closed-msg">⛔ សុំទោស! ហាងរបស់យើងកំពុងផ្អាកទទួលការកុម្ម៉ង់បណ្ដោះអាសន្ន។</div>
     
-    <div id="pointsContainer" style="display:none; background: #e8f8f5; margin: 15px; padding: 10px; border-radius: 8px; border: 1px solid #1abc9c;">
-        🎁 អ្នកមាន <span id="userPoints" style="font-weight:bold; color:#16a085;">0</span> ពិន្ទុសន្សំ<br>
-        <label style="display: flex; align-items: center; justify-content: center; margin-top: 10px; font-weight: bold; color: #2c3e50;">
-            <input type="checkbox" id="usePointsCb" onchange="updateCartTotal()" style="width: 18px; height: 18px; margin-right: 8px;">
-            <span id="lblRewardText">ប្តូរ 50 ពិន្ទុ យកការបញ្ចុះតម្លៃ $5.00</span>
-        </label>
+    <div id="pointsContainer" class="points-card">
+        <p class="points-title">✨ ពិន្ទុសន្សំរបស់អ្នក</p>
+        <p class="points-value">🎁 <span id="userPoints">0</span> pts</p>
+        <div class="points-toggle">
+            <label>
+                <input type="checkbox" id="usePointsCb" onchange="updateCartTotal()">
+                <span id="lblRewardText">ប្តូរ 50 pts យកការបញ្ចុះតម្លៃ $5.00</span>
+            </label>
+        </div>
     </div>
 
     <div id="shopContent">
-        <h3 style="margin: 15px 0;">🍕 មុខម្ហូបប្រចាំហាង</h3>
-        <div id="loading" class="loader">កំពុងទាញយកមុខម្ហូប... ⏳</div>
+        <h3 class="section-title">🔥 ម៉ឺនុយប្រចាំហាង</h3>
+        
+        <!-- Skeleton Loader -->
+        <div id="loading" class="menu-container">
+            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
+            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
+            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
+            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
+        </div>
+        
         <div class="menu-container" id="menuList"></div>
     </div>
 
@@ -42,13 +112,17 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
         
-        // កំណត់ API ទៅកាន់ Railway ផ្ទាល់
+        // Theme Styling Check
+        document.documentElement.style.setProperty('--primary-color', tg.themeParams.button_color || '#e74c3c');
+        document.documentElement.style.setProperty('--primary-text', tg.themeParams.button_text_color || '#ffffff');
+
         const API_URL = "https://web-production-88028.up.railway.app/api";
-        let cart = {}; // រក្សាទុកទម្រង់ { "ឈ្មោះម្ហូប": {price: 2.5, qty: 1} }
+        let cart = {}; 
         let userPoints = 0;
         const chatId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
         let rewardPoints = 50;
         let rewardDiscount = 5.0;
+        let allMenuItems = [];
 
         async function initApp() {
             try {
@@ -57,21 +131,21 @@
 
                 rewardPoints = config.reward_points || 50;
                 rewardDiscount = config.reward_discount || 5.0;
-                document.getElementById("lblRewardText").innerText = `ប្តូរ ${rewardPoints} ពិន្ទុ យកការបញ្ចុះតម្លៃ $${rewardDiscount.toFixed(2)}`;
+                document.getElementById("lblRewardText").innerText = `ប្តូរ ${rewardPoints} pts យកការបញ្ចុះតម្លៃ $${rewardDiscount.toFixed(2)}`;
 
                 const bannerImg = document.getElementById("shopBanner");
                 if (config.banner_url) {
                     bannerImg.src = config.banner_url;
-                    bannerImg.style.display = "block";
+                    document.getElementById("headerSection").style.display = "block";
                 }
 
                 if (config.is_open === false) {
                     document.getElementById("shopContent").style.display = "none";
                     document.getElementById("closedMessage").style.display = "block";
+                    document.getElementById("loading").style.display = "none";
                 } else {
                     loadMenu();
                     
-                    // ៣. ទាញយកពិន្ទុអតិថិជន
                     if (chatId) {
                         const ptsRes = await fetch(`${API_URL}/users/${chatId}/points`);
                         const ptsData = await ptsRes.json();
@@ -83,39 +157,47 @@
                     }
                 }
             } catch (error) {
-                document.getElementById("loading").innerHTML = "❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ។";
+                document.getElementById("loading").innerHTML = "<div style='grid-column: 1/-1; text-align:center; padding: 20px;'>❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ។</div>";
             }
         }
 
         async function loadMenu() {
             try {
                 const res = await fetch(`${API_URL}/menu`);
-                const menuItems = await res.json();
+                allMenuItems = await res.json();
                 
                 const menuList = document.getElementById("menuList");
                 document.getElementById("loading").style.display = "none";
 
-                if (menuItems.length === 0) {
-                    menuList.innerHTML = "<p style='grid-column: 1/-1;'>មិនមានមុខម្ហូបទេនាពេលនេះ។</p>";
+                if (allMenuItems.length === 0) {
+                    menuList.innerHTML = "<div style='grid-column: 1/-1; text-align:center; color: var(--hint-color); padding: 20px;'>មិនមានមុខម្ហូបទេនាពេលនេះ។</div>";
                     return;
                 }
 
-                menuItems.forEach(item => {
+                allMenuItems.forEach(item => {
                     const imgUrl = item.image_url ? item.image_url : "https://via.placeholder.com/300x200?text=No+Image";
                     const price = parseFloat(item.price).toFixed(2);
                     const safeName = item.name.replace(/\s+/g, '-');
+                    const itemId = `item-${item.id}`;
                     
                     const card = document.createElement("div");
                     card.className = "card";
                     card.innerHTML = `
-                        <img src="${imgUrl}" alt="${item.name}">
+                        <div class="card-img-wrapper">
+                            <img src="${imgUrl}" alt="${item.name}" loading="lazy">
+                        </div>
                         <div class="card-body">
                             <p class="card-title">${item.name}</p>
                             <p class="card-price">$${price}</p>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-                                <button class="btn-ctrl" onclick="updateCart('${item.name}', ${item.price}, -1)">➖</button>
-                                <span id="qty-${safeName}" style="font-weight: bold; font-size: 16px;">0</span>
-                                <button class="btn-ctrl" onclick="updateCart('${item.name}', ${item.price}, 1)">➕</button>
+                            
+                            <button id="add-btn-${itemId}" class="btn-initial-add" onclick="firstAdd('${item.name}', ${item.price}, '${itemId}')">
+                                🛒 បន្ថែមចូល
+                            </button>
+                            
+                            <div id="ctrl-${itemId}" class="qty-controls" style="display: none;">
+                                <button class="btn-ctrl" onclick="updateCart('${item.name}', ${item.price}, -1, '${itemId}')">−</button>
+                                <span id="qty-${itemId}" class="qty-value">0</span>
+                                <button class="btn-ctrl add-btn" onclick="updateCart('${item.name}', ${item.price}, 1, '${itemId}')">+</button>
                             </div>
                         </div>
                     `;
@@ -126,23 +208,34 @@
             }
         }
 
-        window.updateCart = function(name, price, change) {
-            const safeName = name.replace(/\s+/g, '-');
+        window.firstAdd = function(name, price, itemId) {
+            document.getElementById(`add-btn-${itemId}`).style.display = "none";
+            document.getElementById(`ctrl-${itemId}`).style.display = "flex";
+            updateCart(name, price, 1, itemId);
+        };
+
+        window.updateCart = function(name, price, change, itemId) {
             if (!cart[name]) {
                 cart[name] = { price: parseFloat(price), qty: 0 };
             }
             
             cart[name].qty += change;
+            tg.HapticFeedback.impactOccurred(change > 0 ? 'light' : 'rigid');
             
             if (cart[name].qty <= 0) {
                 delete cart[name];
-                document.getElementById(`qty-${safeName}`).innerText = "0";
+                if(itemId) {
+                    document.getElementById(`qty-${itemId}`).innerText = "0";
+                    document.getElementById(`ctrl-${itemId}`).style.display = "none";
+                    document.getElementById(`add-btn-${itemId}`).style.display = "flex";
+                }
             } else {
-                document.getElementById(`qty-${safeName}`).innerText = cart[name].qty;
+                if(itemId) {
+                    document.getElementById(`qty-${itemId}`).innerText = cart[name].qty;
+                }
             }
             
             updateCartTotal();
-            tg.HapticFeedback.impactOccurred('light');
         };
 
         window.updateCartTotal = function() {
@@ -159,7 +252,7 @@
             }
 
             if (totalQty > 0) {
-                tg.MainButton.text = `🛍 មើលកន្ត្រក និងគិតលុយ - $${total.toFixed(2)}`;
+                tg.MainButton.text = `🛒 បញ្ជាក់ការកុម្ម៉ង់ (${totalQty}) - គិតលុយ $${total.toFixed(2)}`;
                 tg.MainButton.show();
             } else {
                 tg.MainButton.hide();
@@ -186,6 +279,7 @@
                     body: JSON.stringify({ customer: customerName, items: itemsStr, total: `$${total.toFixed(2)}`, chat_id: chatId, redeem_points: redeemPts })
                 });
                 if(response.ok) {
+                    tg.HapticFeedback.notificationOccurred('success');
                     tg.showAlert("✅ ការកុម្ម៉ង់ជោគជ័យ! សូមឆែកមើល Telegram របស់អ្នក។", () => { tg.close(); });
                 } else {
                     tg.showAlert("❌ មានបញ្ហាក្នុងការបញ្ជូន។");

@@ -1,5 +1,5 @@
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardRemove
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 import requests
 import os
 import io
@@ -21,9 +21,6 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Link ទៅកាន់ Mini App ដែលដំណើរការចេញពី Railway ផ្ទាល់
 MINI_APP_URL = "https://web-production-88028.up.railway.app/miniapp"
-
-# បង្កើតកន្ត្រកទំនិញសម្រាប់អតិថិជនម្នាក់ៗ (Shopping Cart)
-user_carts = {}
 
 # ---------------- ការកំណត់ភាសា (Language Settings) ---------------- #
 user_langs = {}
@@ -58,7 +55,21 @@ LANG_DICT = {
     }
 }
 
+# អនុគមន៍ជំនួយក្នុងការទាញយកភាសាពី Database ជានិរន្តរ៍
+def get_user_lang(chat_id):
+    if chat_id in user_langs:
+        return user_langs[chat_id]
+    try:
+        res = requests.get(f"{API_BASE_URL}/users/{chat_id}")
+        if res.status_code == 200 and res.json():
+            lang = res.json().get("language", "km")
+            user_langs[chat_id] = lang
+            return lang
+    except: pass
+    return "km"
+
 @bot.message_handler(commands=['start'])
+@bot.message_handler(func=lambda message: message.text == '🔄 /start')
 def send_welcome(message):
     # រក្សាទុកព័ត៌មាន User ដោយស្វ័យប្រវត្តិ
     user_id = str(message.from_user.id)
@@ -73,6 +84,17 @@ def send_welcome(message):
     except Exception as e:
         print("Error saving initial user:", e)
 
+    # បង្កើត Reply Keyboard (ជំនួសកន្លែងវាយអក្សរ)
+    reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមប្រើប្រាស់ប៊ូតុងខាងក្រោម...")
+    reply_markup.add(
+        KeyboardButton("🔄 /start")
+    )
+    reply_markup.add(
+        KeyboardButton("📱 ផ្ញើលេខទូរស័ព្ទ", request_contact=True),
+        KeyboardButton("📍 ផ្ញើទីតាំង", request_location=True)
+    )
+    bot.send_message(message.chat.id, "កំពុងរៀបចំប្រព័ន្ធ... / System initializing...", reply_markup=reply_markup)
+
     # ជម្រើសភាសា (Language Selection)
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
@@ -80,11 +102,6 @@ def send_welcome(message):
         InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh"),
         InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")
     )
-
-    # លុប Keyboard ចាស់ៗចោល ដោយប្រើសារបណ្ដោះអាសន្ន
-    del_msg = bot.send_message(message.chat.id, "🔄", reply_markup=ReplyKeyboardRemove())
-    try: bot.delete_message(message.chat.id, del_msg.message_id)
-    except: pass
 
     bot.send_message(message.chat.id, "🌐 សូមជ្រើសរើសភាសា\n🌐 请选择语言\n🌐 Please select your language:", reply_markup=markup)
 
@@ -120,175 +137,37 @@ def show_main_menu(chat_id, lang="km"):
     full_text = f"{texts['welcome']}\n\n{texts['choose']}"
     bot.send_message(chat_id, full_text, reply_markup=markup, parse_mode="Markdown")
 
-@bot.callback_query_handler(func=lambda call: call.data == "show_menu")
-def show_menu(call):
+# ---------------- ទទួលព័ត៌មានពីការចុចប៊ូតុងផ្ញើទូរស័ព្ទ និង ទីតាំង ---------------- #
+@bot.message_handler(content_types=['contact'])
+def handle_contact(message):
+    chat_id = str(message.chat.id)
+    phone = message.contact.phone_number
     try:
-        # ទាញយកមុខម្ហូបពី FastAPI Backend
-        response = requests.get(f"{API_BASE_URL}/menu")
-        menu_items = response.json()
-        
-        if not menu_items:
-            bot.send_message(call.message.chat.id, "សុំទោស ហាងរបស់យើងមិនទាន់មានមុខម្ហូបទេពេលនេះ។")
-            return
-        
-        # បង្ហាញមុខម្ហូបនីមួយៗជាសារដាច់ដោយឡែក (មានរូបភាពបើមាន)
-        for item in menu_items:
-            markup = InlineKeyboardMarkup()
-            btn_text = f"🛒 បន្ថែមចូលកន្ត្រក (${item.get('price', 0.0):.2f})"
-            btn_data = f"order_{item['id']}"
-            markup.add(InlineKeyboardButton(btn_text, callback_data=btn_data))
-            
-            caption = f"🍕 *{item['name']}*\n💰 តម្លៃ: *${item.get('price', 0.0):.2f}*"
-            img_url = item.get('image_url')
-            
-            if img_url and img_url.strip() != "":
-                try:
-                    bot.send_photo(call.message.chat.id, photo=img_url, caption=caption, reply_markup=markup, parse_mode="Markdown")
-                except Exception:
-                    # បើ Link រូបខូច ផ្ញើតែអក្សរ
-                    bot.send_message(call.message.chat.id, caption, reply_markup=markup, parse_mode="Markdown")
-            else:
-                bot.send_message(call.message.chat.id, caption, reply_markup=markup, parse_mode="Markdown")
-        
-        # ប៊ូតុងទៅមើលកន្ត្រក
-        cart_markup = InlineKeyboardMarkup()
-        cart_markup.add(InlineKeyboardButton("🛍 មើលកន្ត្រក និងគិតលុយ", callback_data="view_cart"))
-        bot.send_message(call.message.chat.id, "👇 បន្ទាប់ពីជ្រើសរើសរួច សូមចុចប៊ូតុងខាងក្រោមដើម្បីទូទាត់ប្រាក់៖", reply_markup=cart_markup)
-        
+        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "phone": phone})
+        lang = get_user_lang(chat_id)
+        bot.send_message(chat_id, "✅ លេខទូរស័ព្ទរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Phone number saved!")
     except Exception as e:
-        bot.send_message(call.message.chat.id, "ប្រព័ន្ធកំពុងមានបញ្ហា សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។")
-        print("Error fetching menu:", e)
+        print("Contact Error:", e)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("order_"))
-def add_to_cart(call):
+@bot.message_handler(content_types=['location'])
+def handle_location(message):
+    chat_id = str(message.chat.id)
+    lat = message.location.latitude
+    lon = message.location.longitude
+    loc_str = f"{lat},{lon}"
     try:
-        item_id = int(call.data.split("_")[1])
-        response = requests.get(f"{API_BASE_URL}/menu")
-        menu_items = response.json()
-        
-        # ស្វែងរកមុខម្ហូបដែលភ្ញៀវបានចុច
-        item = next((x for x in menu_items if x['id'] == item_id), None)
-        if item:
-            chat_id = call.message.chat.id
-            if chat_id not in user_carts:
-                user_carts[chat_id] = []
-            user_carts[chat_id].append(item)
-            
-            bot.answer_callback_query(call.id, f"✅ បានបន្ថែម {item['name']} ចូលកន្ត្រក!")
-            
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("🛍 មើលកន្ត្រក និងគិតលុយ", callback_data="view_cart"))
-            markup.add(InlineKeyboardButton("🍕 បន្តកុម្ម៉ង់មុខម្ហូបផ្សេងទៀត", callback_data="show_menu"))
-            bot.send_message(chat_id, f"🛒 បច្ចុប្បន្នអ្នកមាន *{len(user_carts[chat_id])}* មុខម្ហូបក្នុងកន្ត្រក។", reply_markup=markup, parse_mode="Markdown")
-        else:
-            bot.answer_callback_query(call.id, "❌ រកមិនឃើញមុខម្ហូបនេះទេ!")
+        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": loc_str})
+        lang = get_user_lang(chat_id)
+        bot.send_message(chat_id, "✅ ទីតាំងរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Location saved!")
     except Exception as e:
-        print("Error adding to cart:", e)
-
-@bot.callback_query_handler(func=lambda call: call.data == "view_cart")
-def view_cart(call):
-    chat_id = call.message.chat.id
-    cart = user_carts.get(chat_id, [])
-    if not cart:
-        bot.answer_callback_query(call.id, "កន្ត្រករបស់អ្នកទទេស្អាត!", show_alert=True)
-        return
-        
-    text = "🛒 *កន្ត្រកទំនិញរបស់អ្នក៖*\n\n"
-    total = 0
-    item_counts = {}
-    for item in cart:
-        item_counts[item['name']] = item_counts.get(item['name'], 0) + 1
-        total += item.get('price', 0.0)
-        
-    for name, qty in item_counts.items():
-        text += f"▪️ {name}  x{qty}\n"
-        
-    text += f"\n💰 *សរុប៖ ${total:.2f}*"
-    
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("✅ បញ្ជាក់ការកុម្ម៉ង់ (Checkout)", callback_data="checkout"))
-    markup.add(InlineKeyboardButton("🗑 លុបកន្ត្រកចោល", callback_data="clear_cart"))
-    markup.add(InlineKeyboardButton("🔙 ត្រឡប់ទៅម៉ឺនុយ", callback_data="show_menu"))
-    
-    bot.send_message(chat_id, text, reply_markup=markup, parse_mode="Markdown")
-
-@bot.callback_query_handler(func=lambda call: call.data == "clear_cart")
-def clear_cart(call):
-    chat_id = call.message.chat.id
-    user_carts[chat_id] = []
-    bot.answer_callback_query(call.id, "🗑 កន្ត្រកត្រូវបានលុបជោគជ័យ!")
-    bot.send_message(chat_id, "កន្ត្រករបស់អ្នកទទេស្អាតហើយ។ សូមចុច /start ដើម្បីកុម្ម៉ង់ម្តងទៀត។")
-
-@bot.callback_query_handler(func=lambda call: call.data == "checkout")
-def checkout(call):
-    chat_id = call.message.chat.id
-    cart = user_carts.get(chat_id, [])
-    if not cart:
-        bot.answer_callback_query(call.id, "កន្ត្រករបស់អ្នកទទេស្អាត!", show_alert=True)
-        return
-        
-    item_counts = {}
-    total = 0
-    for item in cart:
-        item_counts[item['name']] = item_counts.get(item['name'], 0) + 1
-        total += item.get('price', 0.0)
-        
-    items_str = ", ".join([f"{name} x{qty}" for name, qty in item_counts.items()])
-    customer_name = call.from_user.first_name or f"អតិថិជន {chat_id}"
-    
-    order_data = {
-        "customer": customer_name,
-        "items": items_str,
-        "total": f"${total:.2f}",
-        "status": "ថ្មី (រង់ចាំការបញ្ជាក់)",
-        "chat_id": str(chat_id)
-    }
-    
-    try:
-        response = requests.post(f"{API_BASE_URL}/orders", json=order_data)
-        if response.status_code == 200:
-            bot.answer_callback_query(call.id, "✅ ការបញ្ជាទិញជោគជ័យ!")
-            
-            # ទាញយកការកំណត់ ABA ពី Backend
-            aba_name = "HEM SINATH"
-            aba_number = "086599789"
-            try:
-                config_res = requests.get(f"{API_BASE_URL}/config").json()
-                aba_name = config_res.get("aba_name", aba_name)
-                aba_number = config_res.get("aba_number", aba_number)
-            except:
-                pass
-
-            payment_text = (
-                f"🎉 *អរគុណសម្រាប់ការកុម្ម៉ង់!*\n\n"
-                f"📋 *វិក្កយបត្ររបស់អ្នក៖*\n{items_str}\n"
-                f"💰 *សរុបប្រាក់ត្រូវបង់៖ ${total:.2f}*\n\n"
-                f"💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA ខាងក្រោម៖*\n"
-                f"• ឈ្មោះគណនី៖ *{aba_name}*\n"
-                f"• លេខគណនី៖ *{aba_number}*\n\n"
-                f"📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។"
-            )
-            
-            # បង្កើត Dynamic QR Code
-            qr_data = f"Account: {aba_number}\nName: {aba_name}\nAmount: ${total:.2f}"
-            qr = qrcode.make(qr_data)
-            bio = io.BytesIO()
-            qr.save(bio, format="PNG")
-            bio.seek(0)
-            bot.send_photo(chat_id, photo=bio, caption=payment_text, parse_mode="Markdown")
-            
-            user_carts[chat_id] = [] # សម្អាតកន្ត្រកក្រោយទិញរួច
-        else:
-            bot.send_message(chat_id, "❌ មានបញ្ហាក្នុងការបញ្ជូនការបញ្ជាទិញ។ សូមព្យាយាមម្តងទៀត។")
-    except Exception as e:
-        bot.send_message(chat_id, "❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេពេលនេះ។")
+        print("Location Error:", e)
 
 # ---------------- ទទួលរូបភាព Screenshot ពីអតិថិជន ---------------- #
 @bot.message_handler(content_types=['photo'])
 def handle_payment_screenshot(message):
     try:
-        chat_id = str(message.chat.id)
-        lang = user_langs.get(int(chat_id), "km")
+        chat_id = message.chat.id
+        lang = get_user_lang(chat_id)
         texts = LANG_DICT.get(lang, LANG_DICT["km"])
         
         photo_id = message.photo[-1].file_id # យករូបភាពដែលមានគុណភាពច្បាស់ជាងគេ
@@ -296,7 +175,7 @@ def handle_payment_screenshot(message):
         file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
         
         # បញ្ជូន URL រូបភាពទៅកាន់ Backend API
-        response = requests.post(f"{API_BASE_URL}/orders/receipt", json={"chat_id": chat_id, "image_url": file_url})
+        response = requests.post(f"{API_BASE_URL}/orders/receipt", json={"chat_id": str(chat_id), "image_url": file_url})
         
         if response.status_code == 200:
             res_data = response.json()
@@ -312,11 +191,8 @@ def handle_payment_screenshot(message):
 # បិទមុខងារវាយអក្សរបញ្ចូលក្នុង Bot (Block Text Messaging)
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def block_text(message):
-    if message.text.startswith('/start'):
-        return
-        
     chat_id = message.chat.id
-    lang = user_langs.get(chat_id, "km")
+    lang = get_user_lang(chat_id)
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
     
     try:

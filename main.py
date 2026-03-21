@@ -468,13 +468,13 @@ def add_crm_message(msg: ChatMessage):
     from datetime import datetime
     record = msg.dict()
     record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-        if USE_SUPABASE:
-            try:
-                supabase.table("crm_messages").insert(record).execute()
-            except Exception as e:
-                print("Error saving CRM message:", e)
-        else:
-            crm_messages_db.append(record)
+    if USE_SUPABASE:
+        try:
+            supabase.table("crm_messages").insert(record).execute()
+        except Exception as e:
+            print("Error saving CRM message:", e)
+    else:
+        crm_messages_db.append(record)
     return {"status": "ok"}
 
 @app.get("/api/crm/messages")
