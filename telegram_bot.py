@@ -7,7 +7,7 @@ import qrcode
 from google import genai
 
 # ដាក់ Token របស់ Bot អ្នកដែលបានពី BotFather នៅទីនេះ
-BOT_TOKEN = "8704188082:AAEZmCT0yNJ9U3WNKte9E1SuJT0K4t4TOz0"
+BOT_TOKEN = "8704188082:AAGhvmMZqcpdMrvIhDVYSNowWBbyS5z_bkY"
 
 # ដាក់ Link ដែលអ្នកទទួលបានពី Railway (កុំភ្លេចថែម /api នៅខាងចុង)
 API_BASE_URL = "https://web-production-88028.up.railway.app/api"
@@ -32,16 +32,16 @@ LANG_DICT = {
         "order_app": "📱 កុម្ម៉ង់អាហារ (Order Food)",
         "support": "🎧 ផ្នែកបម្រើអតិថិជន (Support)",
         "no_text": "⚠️ សូមអភ័យទោស ប្រព័ន្ធរបស់យើងប្រើប្រាស់តែប៊ូតុងបញ្ជាប៉ុណ្ណោះ។ សូមចុច /start ដើម្បីបើកម៉ឺនុយឡើងវិញ។",
-        "receipt_ok": "✅ *ទទួលបានជោគជ័យ!*\n\nរូបភាពបង់ប្រាក់ត្រូវបានបញ្ជូនទៅកាន់អ្នកលក់រួចរាល់។ សូមរង់ចាំបន្តិច អាហាររបស់អ្នកនឹងរៀបចំជូនក្នុងពេលឆាប់ៗនេះ។ 🛵",
+        "receipt_ok": "✅ Successfully Received!\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
         "receipt_fail": "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។"
     },
     "zh": {
         "welcome": "🌟 *欢迎来到 小月小吃！*\n\n我们为您提供最卫生、高标准的美味佳肴。请享受我们便捷的数字化点餐服务。",
         "choose": "👇 请选择以下服务：",
-        "order_app": "📱 开始点餐 (Order Food)",
+        "order_app": "📱 小月小吃的菜单",
         "support": "🎧 客服支持 (Support)",
         "no_text": "⚠️ 抱歉，本系统仅支持按钮操作。请点击 /start 重新打开菜单。",
-        "receipt_ok": "✅ *支付凭证已收到！*\n\n您的付款截图已发送给商家。请稍候，我们将尽快为您准备美食。 🛵",
+        "receipt_ok": "✅ Successfully Received!\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
         "receipt_fail": "⚠️ 您当前没有待付款的订单，或您已经发送过凭证了。"
     },
     "en": {
@@ -50,7 +50,7 @@ LANG_DICT = {
         "order_app": "📱 Order Food",
         "support": "🎧 Customer Support",
         "no_text": "⚠️ Sorry, our system only accepts button interactions. Please click /start to reopen the menu.",
-        "receipt_ok": "✅ *Successfully Received!*\n\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
+        "receipt_ok": "✅ Successfully Received!\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
         "receipt_fail": "⚠️ You have no pending orders awaiting payment, or you've already sent a receipt."
     }
 }
@@ -137,6 +137,24 @@ def show_main_menu(chat_id, lang="km"):
     full_text = f"{texts['welcome']}\n\n{texts['choose']}"
     bot.send_message(chat_id, full_text, reply_markup=markup, parse_mode="Markdown")
 
+# ---------------- ទទួលជម្រើសដឹកជញ្ជូន ---------------- #
+@bot.callback_query_handler(func=lambda call: call.data.startswith('pickup_') or call.data.startswith('delivery_'))
+def handle_delivery_choice(call):
+    action, order_id = call.data.split('_', 1)
+    chat_id = str(call.message.chat.id)
+    
+    if action == "pickup":
+        requests.post(f"{API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0})
+        try: bot.delete_message(chat_id, call.message.message_id)
+        except: pass
+    elif action == "delivery":
+        requests.put(f"{API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"})
+        reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        reply_markup.add(KeyboardButton("📍 ផ្ញើទីតាំងរបស់ខ្ញុំ (Send Location)", request_location=True))
+        bot.send_message(chat_id, "📍 *សូមផ្ញើទីតាំងរបស់អ្នក*\n\nសូមចុចប៊ូតុងខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធវ័យឆ្លាតគណនាថ្លៃសេវាដឹកជញ្ជូនដោយស្វ័យប្រវត្តិ៖", reply_markup=reply_markup, parse_mode="Markdown")
+        try: bot.delete_message(chat_id, call.message.message_id)
+        except: pass
+
 # ---------------- ទទួលព័ត៌មានពីការចុចប៊ូតុងផ្ញើទូរស័ព្ទ និង ទីតាំង ---------------- #
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
@@ -157,10 +175,22 @@ def handle_location(message):
     loc_str = f"{lat},{lon}"
     try:
         requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": loc_str})
-        lang = get_user_lang(chat_id)
-        bot.send_message(chat_id, "✅ ទីតាំងរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Location saved!")
     except Exception as e:
         print("Location Error:", e)
+        
+    # ដំណើរការទីតាំងសម្រាប់ការកុម្ម៉ង់
+    res = requests.post(f"{API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon})
+    if res.status_code == 200 and "ok" in res.json().get("status", ""):
+        bot.send_message("@XiaoYueXiaoChi", f"📍 *ទីតាំងដឹកជញ្ជូនរបស់អតិថិជន {message.from_user.first_name}* (ID: `{chat_id}`)", parse_mode="Markdown")
+        bot.send_location("@XiaoYueXiaoChi", lat, lon)
+        
+        reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមប្រើប្រាស់ប៊ូតុងខាងក្រោម...")
+        reply_markup.add(KeyboardButton("🔄 /start"))
+        reply_markup.add(KeyboardButton("📱 ផ្ញើលេខទូរស័ព្ទ", request_contact=True), KeyboardButton("📍 ផ្ញើទីតាំង", request_location=True))
+        bot.send_message(chat_id, "✅ ទទួលបានទីតាំងរួចរាល់! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រជូនអ្នក...", reply_markup=reply_markup)
+    else:
+        lang = get_user_lang(chat_id)
+        bot.send_message(chat_id, "✅ ទីតាំងរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Location saved!")
 
 # ---------------- ទទួលរូបភាព Screenshot ពីអតិថិជន ---------------- #
 @bot.message_handler(content_types=['photo'])
@@ -180,7 +210,10 @@ def handle_payment_screenshot(message):
         if response.status_code == 200:
             res_data = response.json()
             if "error" in res_data:
-                bot.reply_to(message, texts["receipt_fail"])
+                if "verified" in res_data and not res_data["verified"]:
+                    bot.reply_to(message, "⚠️ *ការទូទាត់របស់អ្នកមានបញ្ហា ឬទឹកប្រាក់មិនត្រូវគ្នា!* ❌\n\nសូមទាក់ទងមកកាន់ Admin ផ្ទាល់តាមរយៈប៊ូតុង 🎧 Support (@XiaoYueXiaoChi) ដើម្បីដោះស្រាយភ្លាមៗ។", parse_mode="Markdown")
+                else:
+                    bot.reply_to(message, texts["receipt_fail"])
             else:
                 bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
         else:

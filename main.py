@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -10,6 +10,8 @@ import requests
 from supabase import create_client, Client
 import telebot
 from telegram_bot import bot
+from google import genai
+from google.genai import types
 
 # ---------------- ភ្ជាប់ Webhook របស់ Telegram Bot ---------------- #
 WEBHOOK_URL = "https://web-production-88028.up.railway.app/webhook"
@@ -18,7 +20,7 @@ WEBHOOK_URL = "https://web-production-88028.up.railway.app/webhook"
 async def lifespan(app: FastAPI):
     try:
         bot.remove_webhook()
-        bot.set_webhook(url=WEBHOOK_URL)
+        bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
         print(f"✅ Webhook ត្រូវបានភ្ជាប់ទៅកាន់: {WEBHOOK_URL}")
     except Exception as e:
         print(f"⚠️ ការព្រមាន Webhook: {e}")
@@ -32,7 +34,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ដាក់ Token របស់ Bot សម្រាប់ផ្ញើសារចេញពី Server ត្រឡប់ទៅអតិថិជនវិញ
-BOT_TOKEN = "8704188082:AAEZmCT0yNJ9U3WNKte9E1SuJT0K4t4TOz0"
+BOT_TOKEN = "8704188082:AAGhvmMZqcpdMrvIhDVYSNowWBbyS5z_bkY"
 
 # ---------------- ការកំណត់ Supabase Database ---------------- #
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://rqiakbzssjavyxbfcqhy.supabase.co")
@@ -115,6 +117,17 @@ class BroadcastRequest(BaseModel):
     target: str # 'all', 'pending'
     text: str
 
+class FinalizeOrderData(BaseModel):
+    order_id: str
+    chat_id: str
+    delivery_fee: float
+    distance: float = 0.0
+
+class ProcessLocationReq(BaseModel):
+    chat_id: str
+    lat: float
+    lon: float
+
 class AppConfig(BaseModel):
     banner_url: str
     is_open: bool
@@ -130,14 +143,22 @@ def read_root():
 
 
 @app.post("/webhook")
-def handle_webhook(update_dict: dict):
-    import json
+async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
+    def process_update(data_dict):
+        import json
+        try:
+            json_string = json.dumps(data_dict)
+            update = telebot.types.Update.de_json(json_string)
+            bot.process_new_updates([update])
+        except Exception as e:
+            print(f"Error Processing Update: {e}")
+            
     try:
-        json_string = json.dumps(update_dict)
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
+        update_dict = await request.json()
+        # បញ្ជូនកិច្ចការទៅ Background ដើម្បីកុំឱ្យ Telegram Webhook គាំង (Timeout) ធានាថា Bot ដើរ ១០០%
+        background_tasks.add_task(process_update, update_dict)
     except Exception as e:
-        print(f"Error Processing Update: {e}")
+        print(f"Webhook error: {e}")
     return {"status": "ok"}
 
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
@@ -197,7 +218,7 @@ def miniapp_checkout(order: OrderCreate):
         "customer": order.customer,
         "items": order.items,
         "total": order.total,
-        "status": "ថ្មី (រង់ចាំការបញ្ជាក់)",
+        "status": "រង់ចាំជម្រើសដឹកជញ្ជូន",
         "chat_id": order.chat_id,
         "receipt_url": ""
     }
@@ -221,38 +242,150 @@ def miniapp_checkout(order: OrderCreate):
                     if u.get("points", 0) >= order.redeem_points:
                         u["points"] -= order.redeem_points
 
-    # បាញ់សារទៅ Group ផ្ទះបាយ
+    if order.chat_id:
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🏪 មកយកផ្ទាល់នៅហាង (Pickup)", "callback_data": f"pickup_{new_order['id']}"}],
+                [{"text": "🛵 ហាងដឹកជូនផ្ទាល់ (Delivery)", "callback_data": f"delivery_{new_order['id']}"}]
+            ]
+        }
+        msg_text = f"🎉 *ទទួលបានការកុម្ម៉ង់បឋម!*\n\n🧾 លេខវិក្កយបត្រ: `{new_order['id']}`\n\nតើលោកអ្នកចង់មកយកផ្ទាល់ ឬឱ្យហាងដឹកជូន?"
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+            "chat_id": order.chat_id,
+            "text": msg_text,
+            "parse_mode": "Markdown",
+            "reply_markup": markup
+        })
+        
+    return {"message": "Order placed and receipt sent", "order": new_order}
+
+def finalize_order_internal(order_id, chat_id, fee, distance=0):
+    order = None
+    if USE_SUPABASE:
+        res = supabase.table("orders").select("*").eq("id", order_id).execute()
+        if res.data: order = res.data[0]
+    else:
+        for o in orders_db:
+            if o["id"] == order_id:
+                order = o
+                break
+    if not order: return
+    
+    new_items = order["items"]
+    current_total_str = order["total"].replace("$", "").replace(",", "")
+    try: current_total = float(current_total_str)
+    except: current_total = 0.0
+    
+    if fee > 0:
+        new_items += f", 🛵 ថ្លៃដឹកជញ្ជូន ({distance:.1f}km) x1 (${fee:.2f})"
+        current_total += fee
+        
+    new_total_str = f"${current_total:.2f}"
+    
+    if USE_SUPABASE:
+        supabase.table("orders").update({"items": new_items, "total": new_total_str, "status": "ថ្មី (រង់ចាំការបញ្ជាក់)"}).eq("id", order_id).execute()
+        order["items"] = new_items
+        order["total"] = new_total_str
+    else:
+        order["items"] = new_items
+        order["total"] = new_total_str
+        order["status"] = "ថ្មី (រង់ចាំការបញ្ជាក់)"
+
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
-        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Mini App)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}"
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Mini App)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n🛒 *មុខម្ហូប:*\n{order['items'].replace(', ', '%0A')}"
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
 
-    # ផ្ញើសារវិក្កយបត្រ រួមជាមួយ QR Code ទៅកាន់អតិថិជន
-    if order.chat_id:
-        payment_text = (
-            f"🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n"
-            f"🧾 *លេខវិក្កយបត្រ:* `{new_order['id']}`\n"
-            f"👤 *អតិថិជន:* {new_order['customer']}\n"
-            f"🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}\n\n"
-            f"💰 *សរុបប្រាក់ត្រូវបង់:* {new_order['total']}\n\n"
-            f"💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA ខាងក្រោម៖*\n"
-            f"• ឈ្មោះគណនី៖ *{app_config_db['aba_name']}*\n"
-            f"• លេខគណនី៖ *{app_config_db['aba_number']}*\n\n"
-            f"📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។"
-        )
-        
-        # បង្កើត Dynamic QR Code
-        qr_data = f"Account: {app_config_db['aba_number']}\nName: {app_config_db['aba_name']}\nAmount: {new_order['total']}\nOrder ID: {new_order['id']}"
-        qr = qrcode.make(qr_data)
-        bio = io.BytesIO()
-        qr.save(bio, format="PNG")
-        bio.seek(0)
-        
-        files = {'photo': ('qr.png', bio, 'image/png')}
-        data = {'chat_id': order.chat_id, 'caption': payment_text, 'parse_mode': 'Markdown'}
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data=data, files=files)
+    user_phone = "មិនមាន"
+    user_loc = "មិនមាន"
+    if USE_SUPABASE:
+        res = supabase.table("users").select("*").eq("chat_id", chat_id).execute()
+        if res.data:
+            user_phone = res.data[0].get("phone", "មិនមាន")
+            user_loc = res.data[0].get("location", "មិនមាន")
+    else:
+        for u in users_db:
+            if str(u.get("chat_id")) == str(chat_id):
+                user_phone = u.get("phone", "មិនមាន")
+                user_loc = u.get("location", "មិនមាន")
 
-    return {"message": "Order placed and receipt sent", "order": new_order}
+    raw_items = order["items"].split(",")
+    formatted_items = ""
+    for idx, itm in enumerate(raw_items):
+        if itm.strip():
+            formatted_items += f"{idx + 1}. {itm.strip()}\n"
+
+    payment_text = (
+        f"🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n"
+        f"🧾 *លេខវិក្កយបត្រ:* `{order['id']}`\n"
+        f"👤 *អតិថិជន:* {order['customer']}\n"
+        f"📱 *គណនី Telegram:* {chat_id}\n"
+        f"📞 *លេខទូរស័ព្ទ:* {user_phone}\n"
+        f"📍 *Location:* {user_loc}\n\n"
+        f"🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*\n"
+        f"{formatted_items}\n"
+        f"💰 *សរុបប្រាក់ត្រូវបង់:* {order['total']}\n\n"
+        f"💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA & ACLEDA ខាងក្រោម៖*\n"
+        f"• ឈ្មោះគណនី៖ HEM SINATH\n"
+        f"• លេខគណនី៖ 086599789\n\n"
+        f"📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។"
+    )
+    
+    qr_path = os.path.join(os.path.dirname(__file__), "aba_qr.jpg")
+    if os.path.exists(qr_path):
+        with open(qr_path, "rb") as f:
+            qr_bytes = f.read()
+        
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={'chat_id': "@XiaoYueXiaoChi", 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+    else:
+        # បម្រុងទុក (Fallback)៖ បើសិនជាបាត់រូប aba_qr.jpg ក៏វានៅតែបាញ់អត្ថបទវិក្កយបត្រទៅដែរ
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={'chat_id': "@XiaoYueXiaoChi", 'text': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'})
+
+@app.post("/api/orders/finalize")
+def finalize_order_api(data: FinalizeOrderData):
+    finalize_order_internal(data.order_id, data.chat_id, data.delivery_fee, data.distance)
+    return {"status": "ok"}
+
+@app.post("/api/orders/process_location")
+def process_location_api(data: ProcessLocationReq):
+    import math
+    def calculate_distance(lat1, lon1, lat2, lon2):
+        R = 6371
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat/2) * math.sin(dlat/2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2) * math.sin(dlon/2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return R * c
+        
+    # ទីតាំងហាងជាក់ស្តែង (HV46+P8 Phnom Penh) ប្រហែល 11.5564, 104.9282
+    STORE_LAT = 11.5564
+    STORE_LON = 104.9282
+    dist = calculate_distance(STORE_LAT, STORE_LON, data.lat, data.lon)
+    
+    if dist <= 1: fee = 0.50
+    elif dist <= 5: fee = 1.00
+    elif dist <= 7: fee = 1.50
+    elif dist <= 9: fee = 2.00
+    elif dist <= 15: fee = 2.50
+    elif dist <= 20: fee = 3.50
+    else: fee = 4.00
+    
+    order_to_process = None
+    if USE_SUPABASE:
+        res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "រង់ចាំទីតាំង").execute()
+        if res.data: order_to_process = res.data[-1]
+    else:
+        for o in reversed(orders_db):
+            if str(o.get("chat_id")) == data.chat_id and o.get("status") == "រង់ចាំទីតាំង":
+                order_to_process = o
+                break
+                
+    if order_to_process:
+        finalize_order_internal(order_to_process["id"], data.chat_id, fee, dist)
+        return {"status": "ok"}
+    return {"error": "no order found"}
 
 @app.put("/api/orders/status")
 def update_order_status(status_update: OrderStatusUpdate):
@@ -327,21 +460,138 @@ def update_order_status(status_update: OrderStatusUpdate):
         return {"message": "Status updated successfully", "order": order}
     return {"error": "Order not found"}
 
+def generate_receipt_image(order_data, amount_paid):
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+        from datetime import datetime
+        
+        width = 450
+        height = 650
+        img = Image.new('RGB', (width, height), color=(250, 250, 250))
+        d = ImageDraw.Draw(img)
+        
+        try:
+            font_title = ImageFont.truetype("arialbd.ttf", 26)
+            font_text = ImageFont.truetype("arial.ttf", 18)
+            font_bold = ImageFont.truetype("arialbd.ttf", 18)
+        except:
+            font_title = font_text = font_bold = ImageFont.load_default()
+
+        y = 30
+        d.text((width/2, y), "XIAO YUE XIAO CHI", fill=(0,0,0), font=font_title, anchor="mt")
+        y += 40
+        d.text((width/2, y), "--------------------------------------------------", fill=(0,0,0), font=font_text, anchor="mt")
+        y += 25
+        d.text((30, y), f"Receipt: {order_data['id']}", fill=(0,0,0), font=font_bold)
+        d.text((250, y), f"Date: {datetime.now().strftime('%d/%m/%Y')}", fill=(0,0,0), font=font_text)
+        y += 30
+        d.text((30, y), f"Customer: {order_data['customer']}", fill=(0,0,0), font=font_text)
+        y += 30
+        d.text((width/2, y), "==================================", fill=(0,0,0), font=font_text, anchor="mt")
+        y += 25
+        items = order_data["items"].split(",")
+        for item in items:
+            if item.strip():
+                d.text((30, y), item.strip()[:40], fill=(0,0,0), font=font_text)
+                y += 30
+        d.text((width/2, y), "--------------------------------------------------", fill=(0,0,0), font=font_text, anchor="mt")
+        y += 25
+        d.text((30, y), "Total Due:", fill=(0,0,0), font=font_bold)
+        d.text((330, y), f"{order_data['total']}", fill=(0,0,0), font=font_bold)
+        y += 30
+        d.text((30, y), "Amount Paid:", fill=(0,0,0), font=font_bold)
+        d.text((330, y), f"${float(amount_paid):.2f}", fill=(39, 174, 96), font=font_bold)
+        y += 40
+        d.text((width/2, y), "*** PAID SUCCESSFULLY ***", fill=(39, 174, 96), font=font_title, anchor="mt")
+        bio = io.BytesIO()
+        img.save(bio, format="PNG")
+        bio.seek(0)
+        return bio.getvalue()
+    except Exception as e:
+        print("Error generating receipt image:", e)
+        return None
+
 @app.post("/api/orders/receipt")
 def upload_receipt(data: OrderReceipt):
+    # ស្វែងរកការកុម្ម៉ង់ដែលកំពុងរង់ចាំ (Pending Order)
+    pending_order = None
     if USE_SUPABASE:
         res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "ថ្មី (រង់ចាំការបញ្ជាក់)").execute()
-        if res.data:
-            order_id = res.data[-1]['id'] # យករកការកុម្ម៉ង់ចុងក្រោយគេ
-            supabase.table("orders").update({"receipt_url": data.image_url}).eq("id", order_id).execute()
-            return {"message": "Receipt saved", "order_id": order_id}
-        return {"error": "No pending order found"}
+        if res.data: pending_order = res.data[-1]
     else:
         for order in reversed(orders_db):
-            if order.get("chat_id") == data.chat_id and order.get("status") == "ថ្មី (រង់ចាំការបញ្ជាក់)":
-                order["receipt_url"] = data.image_url
-                return {"message": "Receipt saved", "order_id": order["id"]}
+            if str(order.get("chat_id")) == str(data.chat_id) and order.get("status") == "ថ្មី (រង់ចាំការបញ្ជាក់)":
+                pending_order = order
+                break
+                
+    if not pending_order:
         return {"error": "No pending order found"}
+        
+    # ទាញយកទឹកប្រាក់ដែលត្រូវទូទាត់សរុប
+    expected_total_str = pending_order["total"].replace("$", "").replace(",", "").strip()
+    try: expected_total = float(expected_total_str)
+    except: expected_total = 0.0
+
+    # ---------------- មុខងារ AI Verification ---------------- #
+    # ទាញយក GEMINI API KEY ពី telegram_bot ដោយផ្ទាល់ ដើម្បីធានាថាវាមិនទទេស្អាត
+    import telegram_bot
+    gemini_key = os.getenv("GEMINI_API_KEY", getattr(telegram_bot, "GEMINI_API_KEY", ""))
+    is_valid = False
+    ai_reason = "ប្រព័ន្ធមិនអាចផ្ទៀងផ្ទាត់រូបភាពបានទេ"
+    extracted_amount = 0
+    acc_name, trx_id = "N/A", "N/A"
+
+    if gemini_key:
+        try:
+            client = genai.Client(api_key=gemini_key)
+            img_data = requests.get(data.image_url).content
+            
+            prompt = f"""
+            You are a highly strictly payment verification system. Analyze this ABA/ACLEDA payment screenshot.
+            Extract these exact values: Total Amount (number only), Account Name (string), Trx. ID or Reference Number (string).
+            Compare the extracted amount with the expected total: {expected_total}.
+            If the extracted amount is EXACTLY EQUAL OR GREATER than {expected_total}, set is_match to true, otherwise false.
+            Return ONLY a valid JSON object in this format (no markdown):
+            {{"extracted_amount": 15.50, "is_match": true, "trx_id": "123456789", "account_name": "HEM SINATH", "reason": "Amount verified."}}
+            """
+            
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=[types.Part.from_bytes(data=img_data, mime_type='image/jpeg'), prompt],
+                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.0)
+            )
+            import json
+            result = json.loads(response.text)
+            is_valid = result.get("is_match", False)
+            ai_reason = result.get("reason", "មិនអាចផ្ទៀងផ្ទាត់បាន")
+            extracted_amount = result.get("extracted_amount", 0)
+            acc_name = result.get("account_name", "N/A")
+            trx_id = result.get("trx_id", "N/A")
+        except Exception as e:
+            print(f"AI Verification Error: {e}")
+            is_valid = False
+            ai_reason = "មានបញ្ហាភ្ជាប់ទៅកាន់ប្រព័ន្ធ AI ស្កេនរូបភាព"
+
+    if is_valid:
+        if USE_SUPABASE: supabase.table("orders").update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"}).eq("id", pending_order["id"]).execute()
+        else: pending_order.update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"})
+        
+        receipt_png = generate_receipt_image(pending_order, extracted_amount)
+        admin_msg = f"✅ *អតិថិជនបានទូទាត់ប្រាក់ជោគជ័យ!*\n🧾 វិក្កយបត្រ: `{pending_order['id']}`\n💰 បានទូទាត់: `${extracted_amount}`\n🏦 គណនី: {acc_name}\n🆔 Trx ID: `{trx_id}`"
+        if receipt_png:
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={"chat_id": "@XiaoYueXiaoChi", "caption": admin_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
+            user_msg = "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!* នេះជាវិក្កយបត្រផ្លូវការ។ សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵"
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={"chat_id": data.chat_id, "caption": user_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
+        else:
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": data.chat_id, "text": "✅ *ការទូទាត់ជោគជ័យ!* សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵", "parse_mode": "Markdown"})
+            
+        return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True}
+    else:
+        admin_msg = f"⚠️ *ការព្រមានពីប្រព័ន្ធ AI (ការទូទាត់មានបញ្ហា)!*\n\nការកុម្ម៉ង់លេខ `{pending_order['id']}` របស់អតិថិជន {pending_order['customer']} ត្រូវបានរកឃើញភាពមិនប្រក្រតី។\n\n📉 តម្រូវការទឹកប្រាក់: `${expected_total}`\n🔍 មូលហេតុពី AI: {ai_reason}\n\nសូម Admin ពិនិត្យឡើងវិញជាបន្ទាន់ជាមួយភ្ញៀវ។"
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
+        return {"error": "Payment verification failed", "reason": ai_reason, "verified": False}
 
 @app.get("/api/menu")
 def get_menu():
@@ -355,7 +605,7 @@ def add_menu(item: MenuItem):
     if USE_SUPABASE:
         try:
             response = supabase.table("menu").insert({"name": item.name, "price": item.price, "image_url": item.image_url}).execute()
-            return response.data[0] if response.data else {"id": 0, "name": item.name, "price": item.price}
+            return response.data[0] if response.data else {"id": 0, "name": item.name, "price": item.price, "image_url": item.image_url}
         except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
     global menu_id_counter
@@ -363,6 +613,23 @@ def add_menu(item: MenuItem):
     menu_db.append(new_item)
     menu_id_counter += 1
     return new_item
+
+@app.put("/api/menu/{item_id}")
+def update_menu(item_id: int, item: MenuItem):
+    if USE_SUPABASE:
+        try:
+            response = supabase.table("menu").update({"name": item.name, "price": item.price, "image_url": item.image_url}).eq("id", item_id).execute()
+            return response.data[0] if response.data else {"id": item_id, "name": item.name, "price": item.price, "image_url": item.image_url}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
+    global menu_db
+    for m in menu_db:
+        if m["id"] == item_id:
+            m["name"] = item.name
+            m["price"] = item.price
+            m["image_url"] = item.image_url
+            return m
+    return {"error": "Item not found"}
 
 @app.delete("/api/menu/{item_id}")
 def delete_menu(item_id: int):
@@ -378,6 +645,33 @@ def delete_menu(item_id: int):
 def upload_image(file: UploadFile = File(...)):
     import shutil
     try:
+        # 1. ព្យាយាម Upload ទៅ Supabase Storage (ប្រភេទ Persistent - មិនបាត់ពេល Restart)
+        if USE_SUPABASE:
+            try:
+                file_bytes = file.file.read()
+                file_name = f"{file.filename}"
+                supabase.storage.from_("menu_images").upload(file_name, file_bytes, {"content-type": file.content_type})
+                image_url = supabase.storage.from_("menu_images").get_public_url(file_name)
+                return {"image_url": image_url}
+            except Exception as e:
+                # ប្រសិនបើរូបភាពមានរួចហើយ (Duplicate) វានឹងទាញយក Link មកប្រើតែម្តង
+                if "duplicate" in str(e).lower() or "already exists" in str(e).lower():
+                    image_url = supabase.storage.from_("menu_images").get_public_url(file_name)
+                    return {"image_url": image_url}
+                print(f"⚠️ មិនអាច Upload ចូល Supabase Storage បានទេ (ប្តូរទៅ Local វិញ): {e}")
+                file.file.seek(0) # Reset file pointer ត្រឡប់មកដើមវិញដើម្បី Upload ចូល Local
+
+        # 2. ប្រព័ន្ធការពារកម្រិតទី ២: Upload ទៅកាន់ Cloud Storage Catbox.moe ជានិរន្តរ៍ (ធានាមិនបាត់រូប ១០០%)
+        try:
+            file_bytes = file.file.read()
+            res = requests.post('https://catbox.moe/user/api.php', data={'reqtype': 'fileupload'}, files={'fileToUpload': (file.filename, file_bytes, file.content_type)}, timeout=30)
+            if res.status_code == 200 and res.text.startswith("https"):
+                return {"image_url": res.text}
+        except Exception as e:
+            print(f"⚠️ Catbox Upload Failed: {e}")
+
+        # 3. Local Storage (បម្រុងទុកចុងក្រោយបំផុត - តែនឹងបាត់ពេល Railway Restart)
+        file.file.seek(0)
         file_location = os.path.join(UPLOAD_DIR, file.filename)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
