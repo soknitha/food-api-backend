@@ -155,25 +155,25 @@ class AppConfig(BaseModel):
 def read_root():
     return {"message": "🎉 Server ដំណើរការយ៉ាងរលូន! នេះគឺជា Food E-Commerce API."}
 
+@app.get("/init", response_class=HTMLResponse)
+def init_system(request: Request):
+    """ ប្រើសម្រាប់បង្ខំឱ្យ Telegram ស្គាល់ Domain ថ្មីដោយស្វ័យប្រវត្តិ (Magic Fix) """
+    host = request.headers.get("host")
+    scheme = request.headers.get("x-forwarded-proto", "https")
+    real_webhook_url = f"{scheme}://{host}/webhook"
+    
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=real_webhook_url, drop_pending_updates=True)
+        print(f"✅ Webhook Fixed: {real_webhook_url}")
+        return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធត្រូវបានជួសជុលជោគជ័យ!</h2><p>Webhook ថ្មីគឺ: <b>{real_webhook_url}</b></p><h3 style='color:green;'>សូមចូលទៅ Telegram រួចចុច /start ឥឡូវនេះ</h3></div>"
+    except Exception as e:
+        return f"<div style='text-align:center; color:red;'><h2>❌ មានកំហុស: {e}</h2></div>"
 
 @app.post("/webhook")
 async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
     def process_update(json_string):
-        try:
-            update = telebot.types.Update.de_json(json_string)
-            bot.process_new_updates([update])
-        except Exception as e:
-            print(f"Error Processing Update: {e}")
-            
-    try:
-        # ទទួលយកទិន្នន័យដើម (Raw Body) ពី Telegram ដើម្បីការពារការខូចទ្រង់ទ្រាយអក្សរ (Unicode/Khmer)
-        body = await request.body()
-        json_string = body.decode('utf-8')
-        print(f"🔔 ទទួលបានសារពី Telegram: {json_string[:100]}...")
-        background_tasks.add_task(process_update, json_string)
-    except Exception as e:
-        print(f"Webhook error: {e}")
-    return {"status": "ok"}
+
 
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
 @app.get("/miniapp", response_class=HTMLResponse)
