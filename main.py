@@ -146,19 +146,18 @@ def read_root():
 
 @app.post("/webhook")
 async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
-    def process_update(data_dict):
-        import json
+    def process_update(json_string):
         try:
-            json_string = json.dumps(data_dict)
             update = telebot.types.Update.de_json(json_string)
             bot.process_new_updates([update])
         except Exception as e:
             print(f"Error Processing Update: {e}")
             
     try:
-        update_dict = await request.json()
-        # បញ្ជូនកិច្ចការទៅ Background ដើម្បីកុំឱ្យ Telegram Webhook គាំង (Timeout) ធានាថា Bot ដើរ ១០០%
-        background_tasks.add_task(process_update, update_dict)
+        # ទទួលយកទិន្នន័យដើម (Raw Body) ពី Telegram ដើម្បីការពារការខូចទ្រង់ទ្រាយអក្សរ (Unicode/Khmer)
+        body = await request.body()
+        json_string = body.decode('utf-8')
+        background_tasks.add_task(process_update, json_string)
     except Exception as e:
         print(f"Webhook error: {e}")
     return {"status": "ok"}

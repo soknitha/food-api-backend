@@ -11,8 +11,9 @@ warnings.filterwarnings("ignore")
 # ដាក់ Token របស់ Bot អ្នកដែលបានពី BotFather នៅទីនេះ
 BOT_TOKEN = os.getenv("BOT_TOKEN", "1234567890:DummyTokenToPreventCrash12345")
 
-# ដាក់ Link ដែលអ្នកទទួលបានពី Railway (កុំភ្លេចថែម /api នៅខាងចុង)
-API_BASE_URL = "https://web-production-88028.up.railway.app/api"
+# ប្រើប្រាស់ Localhost ដើម្បីឱ្យ Server អាចទាក់ទងខ្លួនឯងបានលឿន និងមិនគាំង (Deadlock)
+local_port = os.environ.get("PORT", 8000)
+API_BASE_URL = f"http://127.0.0.1:{local_port}/api"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -62,7 +63,7 @@ def get_user_lang(chat_id):
     if chat_id in user_langs:
         return user_langs[chat_id]
     try:
-        res = requests.get(f"{API_BASE_URL}/users/{chat_id}")
+        res = requests.get(f"{API_BASE_URL}/users/{chat_id}", timeout=5)
         if res.status_code == 200 and res.json():
             lang = res.json().get("language", "km")
             user_langs[chat_id] = lang
@@ -79,7 +80,7 @@ def send_welcome(message):
     user_name = message.from_user.first_name or "N/A"
     
     try:
-        response = requests.post(f"{API_BASE_URL}/users", json={"id": user_id, "name": user_name, "phone": "N/A", "location": ""})
+        response = requests.post(f"{API_BASE_URL}/users", json={"id": user_id, "name": user_name, "phone": "N/A", "location": ""}, timeout=5)
         if response.status_code == 200:
             user_data = response.json()
             if user_data and "language" in user_data:
@@ -117,7 +118,7 @@ def set_language(call):
     
     # រក្សាទុកភាសាចូល Database តាមរយៈ API ដើម្បីឱ្យមាននិរន្តរភាព
     try:
-        requests.post(f"{API_BASE_URL}/users", json={"id": str(chat_id), "name": call.from_user.first_name or "N/A", "language": lang})
+        requests.post(f"{API_BASE_URL}/users", json={"id": str(chat_id), "name": call.from_user.first_name or "N/A", "language": lang}, timeout=5)
     except Exception as e:
         print("Error saving language to API:", e)
 
@@ -147,13 +148,13 @@ def handle_delivery_choice(call):
     chat_id = str(call.message.chat.id)
     
     if action == "pickup":
-        requests.post(f"{API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0})
+        requests.post(f"{API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0}, timeout=5)
         try:
             bot.delete_message(chat_id, call.message.message_id)
         except Exception:
             pass
     elif action == "delivery":
-        requests.put(f"{API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"})
+        requests.put(f"{API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=5)
         reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         reply_markup.add(KeyboardButton("📍 ផ្ញើទីតាំងរបស់ខ្ញុំ (Send Location)", request_location=True))
         bot.send_message(chat_id, "📍 *សូមផ្ញើទីតាំងរបស់អ្នក*\n\nសូមចុចប៊ូតុងខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធវ័យឆ្លាតគណនាថ្លៃសេវាដឹកជញ្ជូនដោយស្វ័យប្រវត្តិ៖", reply_markup=reply_markup, parse_mode="Markdown")
@@ -168,7 +169,7 @@ def handle_contact(message):
     chat_id = str(message.chat.id)
     phone = message.contact.phone_number
     try:
-        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "phone": phone})
+        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "phone": phone}, timeout=5)
         lang = get_user_lang(chat_id)
         bot.send_message(chat_id, "✅ លេខទូរស័ព្ទរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Phone number saved!")
     except Exception as e:
@@ -181,23 +182,26 @@ def handle_location(message):
     lon = message.location.longitude
     loc_str = f"{lat},{lon}"
     try:
-        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": loc_str})
+        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": loc_str}, timeout=5)
     except Exception as e:
         print("Location Error:", e)
         
     # ដំណើរការទីតាំងសម្រាប់ការកុម្ម៉ង់
-    res = requests.post(f"{API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon})
-    if res.status_code == 200 and "ok" in res.json().get("status", ""):
-        bot.send_message("@XiaoYueXiaoChi", f"📍 *ទីតាំងដឹកជញ្ជូនរបស់អតិថិជន {message.from_user.first_name}* (ID: `{chat_id}`)", parse_mode="Markdown")
-        bot.send_location("@XiaoYueXiaoChi", lat, lon)
-        
-        reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមប្រើប្រាស់ប៊ូតុងខាងក្រោម...")
-        reply_markup.add(KeyboardButton("🔄 /start"))
-        reply_markup.add(KeyboardButton("📱 ផ្ញើលេខទូរស័ព្ទ", request_contact=True), KeyboardButton("📍 ផ្ញើទីតាំង", request_location=True))
-        bot.send_message(chat_id, "✅ ទទួលបានទីតាំងរួចរាល់! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រជូនអ្នក...", reply_markup=reply_markup)
-    else:
-        lang = get_user_lang(chat_id)
-        bot.send_message(chat_id, "✅ ទីតាំងរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Location saved!")
+    try:
+        res = requests.post(f"{API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=10)
+        if res.status_code == 200 and "ok" in res.json().get("status", ""):
+            bot.send_message("@XiaoYueXiaoChi", f"📍 *ទីតាំងដឹកជញ្ជូនរបស់អតិថិជន {message.from_user.first_name}* (ID: `{chat_id}`)", parse_mode="Markdown")
+            bot.send_location("@XiaoYueXiaoChi", lat, lon)
+            
+            reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមប្រើប្រាស់ប៊ូតុងខាងក្រោម...")
+            reply_markup.add(KeyboardButton("🔄 /start"))
+            reply_markup.add(KeyboardButton("📱 ផ្ញើលេខទូរស័ព្ទ", request_contact=True), KeyboardButton("📍 ផ្ញើទីតាំង", request_location=True))
+            bot.send_message(chat_id, "✅ ទទួលបានទីតាំងរួចរាល់! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រជូនអ្នក...", reply_markup=reply_markup)
+        else:
+            lang = get_user_lang(chat_id)
+            bot.send_message(chat_id, "✅ ទីតាំងរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Location saved!")
+    except Exception as e:
+        print("Process Location API Error:", e)
 
 # ---------------- ទទួលរូបភាព Screenshot ពីអតិថិជន ---------------- #
 @bot.message_handler(content_types=['photo'])
@@ -212,7 +216,7 @@ def handle_payment_screenshot(message):
         file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
         
         # បញ្ជូន URL រូបភាពទៅកាន់ Backend API
-        response = requests.post(f"{API_BASE_URL}/orders/receipt", json={"chat_id": str(chat_id), "image_url": file_url})
+        response = requests.post(f"{API_BASE_URL}/orders/receipt", json={"chat_id": str(chat_id), "image_url": file_url}, timeout=15)
         
         if response.status_code == 200:
             res_data = response.json()
