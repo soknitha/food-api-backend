@@ -27,6 +27,13 @@ async def lifespan(app: FastAPI):
         bot.remove_webhook()
         bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
         print(f"✅ Webhook ត្រូវបានភ្ជាប់ទៅកាន់: {WEBHOOK_URL}")
+
+        # Get Webhook Info
+        webhook_info = bot.get_webhook_info()
+        print(f"✅ Webhook Info: {webhook_info}")
+        if webhook_info.url != WEBHOOK_URL:
+            bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
+            print("✅ Webhook reset successfully.")
     except Exception as e:
         print(f"⚠️ ការព្រមាន Webhook: {e}")
     yield

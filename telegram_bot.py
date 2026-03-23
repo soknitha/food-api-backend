@@ -16,7 +16,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "1234567890:DummyTokenToPreventCrash12345")
 
 # ប្រើប្រាស់ Localhost ដើម្បីឱ្យ Server អាចទាក់ទងខ្លួនឯងបានលឿន និងមិនគាំង (Deadlock)
 local_port = os.environ.get("PORT", 8000)
-API_BASE_URL = f"http://127.0.0.1:{local_port}/api"
+API_BASE_URL = "https://web-production-88028.up.railway.app/api"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
