@@ -1,10 +1,11 @@
 import warnings
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import os
+import sys
 import requests
 from supabase import create_client, Client
 import telebot
@@ -13,32 +14,74 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-load_dotenv() # ទាញយកទិន្នន័យពីឯកសារ .env (បើមាន)
+load_dotenv()
+
+# ----------------
+# ការកំណត់ និងការត្រួតពិនិត្យ Environment Variables
+# ----------------
+# កំណត់អត្តសញ្ញាណអថេរដែលត្រូវការចាំបាច់
+# Terminate app if critical environment variables are missing
+REQUIRED_VARS = [
+    "BOT_TOKEN",
+    "SUPABASE_URL",
+    "SUPABASE_KEY",
+    "GEMINI_API_KEY",
+    "RAILWAY_PUBLIC_DOMAIN"
+]
+missing_vars = [var for var in REQUIRED_VARS if not os.getenv(var)]
+if missing_vars:
+    # បង្ហាញ Error និងបញ្ឈប់កម្មវិធីប្រសិនបើមិនមានអថេរចាំបាច់
+    error_message = f"❌ Critical Error: Missing environment variables: {', '.join(missing_vars)}"
+    print(error_message, file=sys.stderr)
+    sys.exit(f"Application cannot start due to missing configuration: {', '.join(missing_vars)}.")
+
+# ទាញយកតម្លៃ Environment Variables 
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+WEBHOOK_URL = f"https://{DOMAIN}/webhook"
 
 # បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
 warnings.filterwarnings("ignore")
 
-# ---------------- ភ្ជាប់ Webhook របស់ Telegram Bot ---------------- #
-# ទាញយក Domain របស់ Railway ដោយស្វ័យប្រវត្តិ (ការពារបញ្ហាដូរ Link)
-DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app")
-WEBHOOK_URL = f"https://{DOMAIN}/webhook"
-
+# ---------------- Lifespan Manager សម្រាប់ Telegram Bot Webhook ---------------- #
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """
+    Manages the Telegram webhook setup and removal during the application's lifespan.
+    Ensures the webhook is correctly pointed to the Railway public domain.
+    """
+    try:
+        print(f"ℹ️  Attempting to set webhook to: {WEBHOOK_URL}")
+        bot.remove_webhook()  # Always remove old webhook first
+        bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
+        
+        # Verify webhook is set correctly
+        webhook_info = bot.get_webhook_info()
+        if webhook_info.url == WEBHOOK_URL:
+            print(f"✅ Webhook successfully set to: {WEBHOOK_URL}")
+        else:
+            print(f"⚠️ Webhook mismatch. Expected {WEBHOOK_URL}, but found {webhook_info.url}. Retrying...")
+            bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True) # Retry setting
+            webhook_info = bot.get_webhook_info()
+            if webhook_info.url == WEBHOOK_URL:
+                 print(f"✅ Webhook successfully reset to: {WEBHOOK_URL}")
+            else:
+                 print(f"❌ FATAL: Failed to set webhook after retry. Please check bot token and domain. Found: {webhook_info.url}")
+
+    except Exception as e:
+        print(f"❌ FATAL: Could not set webhook: {e}", file=sys.stderr)
+        # Consider stopping the app if webhook is critical
+        # sys.exit("Could not initialize Telegram webhook.")
+    yield
+    # Clean up and remove webhook on shutdown
+    print("ℹ️  Application shutting down. Removing webhook...")
     try:
         bot.remove_webhook()
-        bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
-        print(f"✅ Webhook ត្រូវបានភ្ជាប់ទៅកាន់: {WEBHOOK_URL}")
-
-        # Get Webhook Info
-        webhook_info = bot.get_webhook_info()
-        print(f"✅ Webhook Info: {webhook_info}")
-        if webhook_info.url != WEBHOOK_URL:
-            bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
-            print("✅ Webhook reset successfully.")
+        print("✅ Webhook removed successfully.")
     except Exception as e:
-        print(f"⚠️ ការព្រមាន Webhook: {e}")
-    yield
+        print(f"⚠️ Warning: Could not remove webhook on shutdown: {e}")
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
 
@@ -47,20 +90,16 @@ UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ដាក់ Token របស់ Bot សម្រាប់ផ្ញើសារចេញពី Server ត្រឡប់ទៅអតិថិជនវិញ
-BOT_TOKEN = os.getenv("BOT_TOKEN", "1234567890:DummyTokenToPreventCrash12345")
-
 # ---------------- ការកំណត់ Supabase Database ---------------- #
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://rqiakbzssjavyxbfcqhy.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "sb_publishable_G-_DBDUFf5i-A70bj6NrAA_yH-ZgYG1")
-
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     USE_SUPABASE = True
-    print("✅ ភ្ជាប់ទៅកាន់ Supabase ដោយជោគជ័យ! ទិន្នន័យនឹងត្រូវបានរក្សាទុកជានិរន្តរ៍។")
+    print("✅ Successfully connected to Supabase! Data will be persistent.")
 except Exception as e:
     USE_SUPABASE = False
-    print(f"❌ មិនអាចភ្ជាប់ទៅកាន់ Supabase បានទេ: {e}")
+    print(f"❌ Could not connect to Supabase: {e}", file=sys.stderr)
+    print("⚠️ WARNING: Running in-memory mode. All data will be lost on restart.", file=sys.stderr)
+
 
 # ទិន្នន័យសាកល្បង (Mock Database ក្នុង Memory)
 orders_db = [
@@ -172,7 +211,18 @@ def init_system(request: Request):
 
 @app.post("/webhook")
 async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
-    def process_update(json_string):
+    """Handles incoming updates from the Telegram webhook."""
+    try:
+        json_str = await request.body()
+        update = telebot.types.Update.de_json(json_str.decode('utf-8'))
+        
+        # Process the update in the background to avoid blocking
+        background_tasks.add_task(bot.process_new_updates, [update])
+        
+        return Response(status_code=200)
+    except Exception as e:
+        print(f"❌ Error in webhook handler: {e}", file=sys.stderr)
+        return Response(status_code=500)
 
 
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
@@ -676,37 +726,41 @@ def delete_menu(item_id: int):
 def upload_image(file: UploadFile = File(...)):
     import shutil
     try:
+        file_bytes = file.file.read()
+        file.file.seek(0)  # Reset file pointer after reading
+        file_name = f"{file.filename}"
+        
         # 1. ព្យាយាម Upload ទៅ Supabase Storage (ប្រភេទ Persistent - មិនបាត់ពេល Restart)
         if USE_SUPABASE:
             try:
-                file_bytes = file.file.read()
-                file_name = f"{file.filename}"
-                supabase.storage.from_("menu_images").upload(file_name, file_bytes, {"content-type": file.content_type})
+                # Use upsert to avoid errors on duplicate files
+                supabase.storage.from_("menu_images").upload(file_name, file_bytes, {"content-type": file.content_type, "upsert": "true"})
                 image_url = supabase.storage.from_("menu_images").get_public_url(file_name)
                 return {"image_url": image_url}
             except Exception as e:
-                # ប្រសិនបើរូបភាពមានរួចហើយ (Duplicate) វានឹងទាញយក Link មកប្រើតែម្តង
-                if "duplicate" in str(e).lower() or "already exists" in str(e).lower():
-                    image_url = supabase.storage.from_("menu_images").get_public_url(file_name)
-                    return {"image_url": image_url}
-                print(f"⚠️ មិនអាច Upload ចូល Supabase Storage បានទេ (ប្តូរទៅ Local វិញ): {e}")
-                file.file.seek(0) # Reset file pointer ត្រឡប់មកដើមវិញដើម្បី Upload ចូល Local
+                print(f"⚠️ Supabase Storage upload failed: {e}. Trying next method...")
+                file.file.seek(0)
 
-        # 2. ប្រព័ន្ធការពារកម្រិតទី ២: Upload ទៅកាន់ Cloud Storage Catbox.moe ជានិរន្តរ៍ (ធានាមិនបាត់រូប ១០០%)
+        # 2. ប្រព័ន្ធការពារកម្រិតទី ២: Upload ទៅកាន់ Cloud Storage Catbox.moe ជានិរន្តរ៍
         try:
-            file_bytes = file.file.read()
             res = requests.post('https://catbox.moe/user/api.php', data={'reqtype': 'fileupload'}, files={'fileToUpload': (file.filename, file_bytes, file.content_type)}, timeout=30)
             if res.status_code == 200 and res.text.startswith("https"):
                 return {"image_url": res.text}
+            else:
+                print(f"⚠️ Catbox upload failed with status {res.status_code}. Trying next method...")
         except Exception as e:
-            print(f"⚠️ Catbox Upload Failed: {e}")
+            print(f"⚠️ Catbox upload failed: {e}. Trying next method...")
 
-        # 3. Local Storage (បម្រុងទុកចុងក្រោយបំផុត - តែនឹងបាត់ពេល Railway Restart)
+        # 3. Local Storage (បម្រុងទុកចុងក្រោយ - បាត់ពេល Railway Restart)
         file.file.seek(0)
         file_location = os.path.join(UPLOAD_DIR, file.filename)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        return {"image_url": f"https://web-production-88028.up.railway.app/static/uploads/{file.filename}"}
+        
+        # Construct URL dynamically
+        local_image_url = f"https://{DOMAIN}/static/uploads/{file.filename}"
+        return {"image_url": local_image_url}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -3,32 +3,35 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 import requests
 import os
+import sys
 from google import genai
-from dotenv import load_dotenv
-
-load_dotenv() # ទាញយកទិន្នន័យពីឯកសារ .env (បើមាន)
 
 # បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
 warnings.filterwarnings("ignore")
 
-# ដាក់ Token របស់ Bot អ្នកដែលបានពី BotFather នៅទីនេះ
-BOT_TOKEN = os.getenv("BOT_TOKEN", "1234567890:DummyTokenToPreventCrash12345")
+# ----------------
+# ការកំណត់ និងការត្រួតពិនិត្យ Environment Variables
+# ----------------
+# Environment variables are validated in main.py, so we can use them directly here.
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN")
 
 # ប្រើប្រាស់ Localhost ដើម្បីឱ្យ Server អាចទាក់ទងខ្លួនឯងបានលឿន និងមិនគាំង (Deadlock)
 local_port = os.environ.get("PORT", 8000)
 API_BASE_URL = f"http://127.0.0.1:{local_port}/api"
 
-bot = telebot.TeleBot(BOT_TOKEN)
-
-# ---------------- ការកំណត់ AI Gemini ---------------- #
-# សូមទៅយក API Key ពី Google AI Studio មកជំនួសត្រង់នេះ
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "ដាក់_API_KEY_GEMINI_នៅទីនេះ")
-client = genai.Client(api_key=GEMINI_API_KEY)
-
 # Link ទៅកាន់ Mini App ដែលដំណើរការចេញពី Railway ផ្ទាល់
-# ទាញយក Domain ដោយស្វ័យប្រវត្តិ ការពារបញ្ហាដូរ Link លើ Railway
-DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app")
 MINI_APP_URL = f"https://{DOMAIN}/miniapp"
+
+# Initialize TeleBot and Gemini Client
+try:
+    bot = telebot.TeleBot(BOT_TOKEN)
+    client = genai.Client(api_key=GEMINI_API_KEY)
+except Exception as e:
+    print(f"❌ FATAL: Could not initialize bot or Gemini client: {e}", file=sys.stderr)
+    sys.exit("Exiting due to initialization failure.")
+
 
 # ---------------- ការកំណត់ភាសា (Language Settings) ---------------- #
 user_langs = {}
@@ -254,6 +257,8 @@ def block_text(message):
     bot.send_message(chat_id, texts["no_text"])
 
 if __name__ == '__main__':
-    print("🤖 Telegram Bot កំពុងដំណើរការ... (ចុច Ctrl+C ដើម្បីបិទ)")
+    print("🤖 Telegram Bot is not meant to be run directly.", file=sys.stderr)
+    print("Please run the main.py file with a WSGI server like Uvicorn.", file=sys.stderr)
+    print("Example: uvicorn main:app --host 0.0.0.0 --port 8000")
     # bot.infinity_polling(timeout=10, long_polling_timeout=5)
-    print("សូមដំណើរការ bot នេះតាមរយៈ FastAPI Webhook នៅក្នុង main.py វិញ។")
+    # print("សូមដំណើរការ bot នេះតាមរយៈ FastAPI Webhook នៅក្នុង main.py វិញ។")
