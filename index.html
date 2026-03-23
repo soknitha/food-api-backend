@@ -3,295 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小月小吃 - Mini App</title>
-    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Order Menu - Xiao Yue Xiao Chi</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg-color: var(--tg-theme-bg-color, #f7f9fc);
-            --text-color: var(--tg-theme-text-color, #1a1a1a);
-            --hint-color: var(--tg-theme-hint-color, #8a8a8a);
-            --card-bg: var(--tg-theme-secondary-bg-color, #ffffff);
-            --primary-color: var(--tg-theme-button-color, #e74c3c);
-            --primary-text: var(--tg-theme-button-text-color, #ffffff);
-            --border-color: rgba(0, 0, 0, 0.08);
+            --primary: #e67e22; --bg: #f8f9fa; --card-bg: #ffffff; --text: #2d3436;
         }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 80px; }
+        .header { background: var(--primary); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 1.2rem; }
+        .menu-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; padding: 15px; max-width: 1200px; margin: auto; }
+        .menu-item { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; display: flex; flex-direction: column; }
+        .menu-item:active { transform: scale(0.98); }
+        .menu-img { width: 100%; height: 140px; object-fit: cover; background: #eee; }
+        .menu-info { padding: 10px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
+        .menu-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 5px; }
+        .menu-price { color: var(--primary); font-weight: bold; font-size: 1.1rem; }
+        .add-btn { background: var(--primary); color: white; border: none; padding: 8px; border-radius: 6px; width: 100%; font-weight: bold; margin-top: 10px; cursor: pointer; }
         
-        * { box-sizing: border-box; }
-        body { 
-            font-family: 'Kantumruy Pro', sans-serif; 
-            margin: 0; 
-            background-color: var(--bg-color); 
-            color: var(--text-color); 
-            -webkit-font-smoothing: antialiased;
-            padding-bottom: 80px; /* Space for main button */
-        }
-        
-        /* Header Banner Area */
-        .header-section { position: relative; width: 100%; }
-        .banner { width: 100%; height: 180px; object-fit: cover; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .shop-title { position: absolute; bottom: 15px; left: 15px; color: white; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 18px; backdrop-filter: blur(5px); }
-        
-        /* Messages & Points */
-        .closed-msg { color: #e74c3c; font-weight: bold; margin-top: 50px; font-size: 18px; display: none; text-align: center; background: rgba(231, 76, 60, 0.1); padding: 20px; border-radius: 12px; margin: 20px; }
-        .points-card { background: linear-gradient(135deg, #00b09b, #96c93d); margin: 20px 15px; padding: 15px; border-radius: 16px; color: white; box-shadow: 0 4px 15px rgba(0, 176, 155, 0.3); display: none; transition: transform 0.3s; }
-        .points-title { font-size: 14px; opacity: 0.9; margin: 0 0 5px 0; }
-        .points-value { font-size: 24px; font-weight: 700; margin: 0; }
-        .points-toggle { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 10px; }
-        .points-toggle label { font-size: 14px; font-weight: 500; display: flex; align-items: center; cursor: pointer; width: 100%; }
-        .points-toggle input { width: 18px; height: 18px; margin-right: 10px; accent-color: #fff; }
+        /* Cart Bar */
+        .cart-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 1000; }
+        .cart-info { font-weight: bold; font-size: 1.1rem; }
+        .checkout-btn { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; }
+        .checkout-btn:disabled { background: #ccc; cursor: not-allowed; }
 
-        /* Menu Section */
-        .section-title { margin: 25px 15px 15px; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-        .menu-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 0 15px; }
-        
-        /* Modern Card */
-        .card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
-        .card:active { transform: scale(0.97); }
-        .card-img-wrapper { position: relative; padding-top: 85%; overflow: hidden; }
-        .card img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
-        .card-body { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
-        .card-title { font-size: 15px; font-weight: 600; margin: 0 0 6px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .card-price { color: var(--primary-color); font-weight: 700; font-size: 16px; margin: 0 0 12px 0; }
-        
-        /* Quantity Controls */
-        .qty-controls { display: flex; justify-content: space-between; align-items: center; margin-top: auto; background: var(--bg-color); border-radius: 25px; padding: 4px; border: 1px solid var(--border-color); }
-        .btn-ctrl { background-color: var(--card-bg); border: none; color: var(--text-color); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size: 16px; transition: background 0.2s; }
-        .btn-ctrl:active { background-color: var(--hint-color); color: white; }
-        .btn-ctrl.add-btn { background-color: var(--primary-color); color: white; }
-        .qty-value { font-weight: 600; font-size: 15px; width: 30px; text-align: center; }
-
-        /* Add to Cart initial button */
-        .btn-initial-add { width: 100%; background: var(--primary-color); color: var(--primary-text); border: none; padding: 10px; border-radius: 12px; font-weight: 600; font-size: 14px; font-family: 'Kantumruy Pro', sans-serif; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: auto; }
-        .btn-initial-add:active { opacity: 0.8; }
-
-        /* Skeleton Loader */
-        .skeleton { background: linear-gradient(90deg, var(--card-bg) 25%, var(--bg-color) 50%, var(--card-bg) 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
-        .skeleton-card { border-radius: 16px; overflow: hidden; background: var(--card-bg); border: 1px solid var(--border-color); }
-        .skeleton-img { width: 100%; padding-top: 85%; }
-        .skeleton-text { height: 16px; margin: 12px; border-radius: 4px; width: 80%; }
-        .skeleton-price { height: 16px; margin: 0 12px 12px; border-radius: 4px; width: 50%; }
-        .skeleton-btn { height: 36px; margin: 12px; border-radius: 12px; }
-        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        /* Loading Spinner */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 50px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div class="header-section" id="headerSection" style="display:none;">
-        <img id="shopBanner" class="banner" src="" alt="Shop Banner">
-        <div class="shop-title">小月小吃 Xiao Yue</div>
+    <div class="header">
+        <h1 id="shop-title">🍽️ Xiao Yue Xiao Chi</h1>
     </div>
     
-    <div id="closedMessage" class="closed-msg">⛔ សុំទោស! ហាងរបស់យើងកំពុងផ្អាកទទួលការកុម្ម៉ង់បណ្ដោះអាសន្ន។</div>
-    
-    <div id="pointsContainer" class="points-card">
-        <p class="points-title">✨ ពិន្ទុសន្សំរបស់អ្នក</p>
-        <p class="points-value">🎁 <span id="userPoints">0</span> pts</p>
-        <div class="points-toggle">
-            <label>
-                <input type="checkbox" id="usePointsCb" onchange="updateCartTotal()">
-                <span id="lblRewardText">ប្តូរ 50 pts យកការបញ្ចុះតម្លៃ $5.00</span>
-            </label>
-        </div>
-    </div>
+    <div id="loading" class="loader"></div>
+    <div class="menu-container" id="menu-container"></div>
 
-    <div id="shopContent">
-        <h3 class="section-title">🔥 ម៉ឺនុយប្រចាំហាង</h3>
-        
-        <!-- Skeleton Loader -->
-        <div id="loading" class="menu-container">
-            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
-            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
-            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
-            <div class="skeleton-card"><div class="skeleton skeleton-img"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-price"></div><div class="skeleton skeleton-btn"></div></div>
+    <div class="cart-bar">
+        <div class="cart-info">
+            🛒 <span id="cart-count">0</span> | <span id="cart-total">$0.00</span>
         </div>
-        
-        <div class="menu-container" id="menuList"></div>
+        <button id="checkout-btn" class="checkout-btn" disabled onclick="checkout()">Checkout 🚀</button>
     </div>
 
     <script>
+        let menuData = [];
+        let cart = {};
+        let userProfile = { id: "unknown", name: "Guest" };
+
+        // Init Telegram Web App
         const tg = window.Telegram.WebApp;
         tg.expand();
         
-        // Theme Styling Check
-        document.documentElement.style.setProperty('--primary-color', tg.themeParams.button_color || '#e74c3c');
-        document.documentElement.style.setProperty('--primary-text', tg.themeParams.button_text_color || '#ffffff');
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            userProfile.id = tg.initDataUnsafe.user.id.toString();
+            userProfile.name = tg.initDataUnsafe.user.first_name || "Guest";
+        }
 
-        const API_URL = "https://web-production-88028.up.railway.app/api";
-        let cart = {}; 
-        let userPoints = 0;
-        const chatId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
-        let rewardPoints = 50;
-        let rewardDiscount = 5.0;
-        let allMenuItems = [];
-
-        async function initApp() {
+        async function fetchMenu() {
             try {
-                const configRes = await fetch(`${API_URL}/config`);
-                const config = await configRes.json();
-
-                rewardPoints = config.reward_points || 50;
-                rewardDiscount = config.reward_discount || 5.0;
-                document.getElementById("lblRewardText").innerText = `ប្តូរ ${rewardPoints} pts យកការបញ្ចុះតម្លៃ $${rewardDiscount.toFixed(2)}`;
-
-                const bannerImg = document.getElementById("shopBanner");
-                if (config.banner_url) {
-                    bannerImg.src = config.banner_url;
-                    document.getElementById("headerSection").style.display = "block";
-                }
-
-                if (config.is_open === false) {
-                    document.getElementById("shopContent").style.display = "none";
-                    document.getElementById("closedMessage").style.display = "block";
-                    document.getElementById("loading").style.display = "none";
-                } else {
-                    loadMenu();
-                    
-                    if (chatId) {
-                        const ptsRes = await fetch(`${API_URL}/users/${chatId}/points`);
-                        const ptsData = await ptsRes.json();
-                        userPoints = ptsData.points || 0;
-                        if (userPoints >= rewardPoints) {
-                            document.getElementById("userPoints").innerText = userPoints;
-                            document.getElementById("pointsContainer").style.display = "block";
-                        }
-                    }
-                }
+                const response = await fetch('/api/menu');
+                menuData = await response.json();
+                renderMenu();
             } catch (error) {
-                document.getElementById("loading").innerHTML = "<div style='grid-column: 1/-1; text-align:center; padding: 20px;'>❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ។</div>";
+                document.getElementById('menu-container').innerHTML = "<p style='text-align:center;width:100%;'>Error loading menu. Please try again.</p>";
+            } finally {
+                document.getElementById('loading').style.display = 'none';
             }
         }
 
-        async function loadMenu() {
-            try {
-                const res = await fetch(`${API_URL}/menu`);
-                allMenuItems = await res.json();
+        function getLocalizedName(full_name) {
+            // គាំទ្រការបំបែកដោយប្រើសញ្ញា | ឬ / (ឧទាហរណ៍: ភីហ្សា / 披萨 / Pizza)
+            let normalized = full_name.replace(/\//g, '|'); 
+            const parts = normalized.split('|').map(p => p.trim()).filter(p => p.length > 0);
+            const lang = new URLSearchParams(window.location.search).get('lang') || 'km';
+            
+            if(lang === 'km' && parts.length > 0) return parts[0];
+            if(lang === 'zh' && parts.length > 1) return parts[1];
+            if(lang === 'en') return parts.length > 2 ? parts[2] : (parts.length > 1 ? parts[1] : parts[0]);
+            
+            return parts[0] || full_name; // default fallback (ទាញយកឈ្មោះតែមួយបើ Admin បញ្ចូលតែ ១ ភាសា)
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = '';
+            
+            menuData.forEach(item => {
+                const name = getLocalizedName(item.name);
+                const qty = cart[item.id] ? cart[item.id].qty : 0;
                 
-                const menuList = document.getElementById("menuList");
-                document.getElementById("loading").style.display = "none";
-
-                if (allMenuItems.length === 0) {
-                    menuList.innerHTML = "<div style='grid-column: 1/-1; text-align:center; color: var(--hint-color); padding: 20px;'>មិនមានមុខម្ហូបទេនាពេលនេះ។</div>";
-                    return;
-                }
-
-                allMenuItems.forEach(item => {
-                    const imgUrl = item.image_url ? item.image_url : "https://via.placeholder.com/300x200?text=No+Image";
-                    const price = parseFloat(item.price).toFixed(2);
-                    const safeName = item.name.replace(/\s+/g, '-');
-                    const itemId = `item-${item.id}`;
-                    
-                    const card = document.createElement("div");
-                    card.className = "card";
-                    card.innerHTML = `
-                        <div class="card-img-wrapper">
-                            <img src="${imgUrl}" alt="${item.name}" loading="lazy">
-                        </div>
-                        <div class="card-body">
-                            <p class="card-title">${item.name}</p>
-                            <p class="card-price">$${price}</p>
-                            
-                            <button id="add-btn-${itemId}" class="btn-initial-add" onclick="firstAdd('${item.name}', ${item.price}, '${itemId}')">
-                                🛒 បន្ថែមចូល
-                            </button>
-                            
-                            <div id="ctrl-${itemId}" class="qty-controls" style="display: none;">
-                                <button class="btn-ctrl" onclick="updateCart('${item.name}', ${item.price}, -1, '${itemId}')">−</button>
-                                <span id="qty-${itemId}" class="qty-value">0</span>
-                                <button class="btn-ctrl add-btn" onclick="updateCart('${item.name}', ${item.price}, 1, '${itemId}')">+</button>
-                            </div>
-                        </div>
-                    `;
-                    menuList.appendChild(card);
-                });
-            } catch (error) {
-                console.error(error);
-            }
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.innerHTML = `
+                    <img src="${item.image_url || 'https://via.placeholder.com/150'}" alt="${name}" class="menu-img" loading="lazy">
+                    <div class="menu-info">
+                        <div class="menu-name">${name}</div>
+                        <div class="menu-price">$${item.price.toFixed(2)}</div>
+                        ${qty > 0 
+                            ? `<button class="add-btn" style="background:#2ecc71;" onclick="addToCart(${item.id})">✅ Added (${qty})</button>` 
+                            : `<button class="add-btn" onclick="addToCart(${item.id})">➕ Add to Order</button>`
+                        }
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            updateCartUI();
         }
 
-        window.firstAdd = function(name, price, itemId) {
-            document.getElementById(`add-btn-${itemId}`).style.display = "none";
-            document.getElementById(`ctrl-${itemId}`).style.display = "flex";
-            updateCart(name, price, 1, itemId);
-        };
-
-        window.updateCart = function(name, price, change, itemId) {
-            if (!cart[name]) {
-                cart[name] = { price: parseFloat(price), qty: 0 };
-            }
-            
-            cart[name].qty += change;
-            tg.HapticFeedback.impactOccurred(change > 0 ? 'light' : 'rigid');
-            
-            if (cart[name].qty <= 0) {
-                delete cart[name];
-                if(itemId) {
-                    document.getElementById(`qty-${itemId}`).innerText = "0";
-                    document.getElementById(`ctrl-${itemId}`).style.display = "none";
-                    document.getElementById(`add-btn-${itemId}`).style.display = "flex";
-                }
+        function addToCart(id) {
+            if (!cart[id]) {
+                const item = menuData.find(i => i.id === id);
+                cart[id] = { ...item, qty: 1, localName: getLocalizedName(item.name) };
             } else {
-                if(itemId) {
-                    document.getElementById(`qty-${itemId}`).innerText = cart[name].qty;
-                }
+                cart[id].qty += 1;
             }
-            
-            updateCartTotal();
-        };
+            // Haptic Feedback សម្រាប់អ្នកប្រើទូរស័ព្ទ
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+            renderMenu();
+        }
 
-        window.updateCartTotal = function() {
-            let total = 0;
+        function updateCartUI() {
             let totalQty = 0;
-            for (let key in cart) {
-                total += cart[key].price * cart[key].qty;
-                totalQty += cart[key].qty;
-            }
+            let totalPrice = 0;
+            Object.values(cart).forEach(item => {
+                totalQty += item.qty;
+                totalPrice += (item.price * item.qty);
+            });
             
-            if (document.getElementById("usePointsCb")?.checked && userPoints >= rewardPoints) {
-                total -= rewardDiscount;
-                if (total < 0) total = 0;
-            }
+            document.getElementById('cart-count').innerText = totalQty;
+            document.getElementById('cart-total').innerText = `$${totalPrice.toFixed(2)}`;
+            document.getElementById('checkout-btn').disabled = totalQty === 0;
+        }
 
-            if (totalQty > 0) {
-                tg.MainButton.text = `🛒 បញ្ជាក់ការកុម្ម៉ង់ (${totalQty}) - គិតលុយ $${total.toFixed(2)}`;
-                tg.MainButton.show();
-            } else {
-                tg.MainButton.hide();
-            }
-        };
+        async function checkout() {
+            const btn = document.getElementById('checkout-btn');
+            btn.innerText = "Processing...";
+            btn.disabled = true;
 
-        tg.MainButton.onClick(async () => {
-            let total = Object.values(cart).reduce((sum, item) => sum + (item.price * item.qty), 0);
-            let redeemPts = 0;
-            if (document.getElementById("usePointsCb")?.checked && userPoints >= rewardPoints) {
-                total -= rewardDiscount;
-                if (total < 0) total = 0;
-                redeemPts = rewardPoints;
-            }
+            let itemsArray = [];
+            let totalPrice = 0;
             
-            const itemsStr = Object.entries(cart).map(([name, data]) => `${name} x${data.qty}`).join(", ");
-            const customerName = tg.initDataUnsafe?.user?.first_name || "អតិថិជន Mini App";
+            // រៀបចំទម្រង់: Pizza x1 ($8.50)
+            Object.values(cart).forEach(item => {
+                const itemTotal = item.price * item.qty;
+                totalPrice += itemTotal;
+                itemsArray.push(`${item.localName} x${item.qty} ($${itemTotal.toFixed(2)})`);
+            });
+            
+            const orderData = {
+                customer: userProfile.name,
+                chat_id: userProfile.id,
+                items: itemsArray.join(", "),
+                total: `$${totalPrice.toFixed(2)}`,
+                status: "ថ្មី (រង់ចាំការបញ្ជាក់)",
+                redeem_points: 0
+            };
 
             try {
-                tg.MainButton.showProgress();
-                const response = await fetch(`${API_URL}/miniapp/checkout`, {
+                const response = await fetch('/api/miniapp/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer: customerName, items: itemsStr, total: `$${total.toFixed(2)}`, chat_id: chatId, redeem_points: redeemPts })
+                    body: JSON.stringify(orderData)
                 });
-                if(response.ok) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                    tg.showAlert("✅ ការកុម្ម៉ង់ជោគជ័យ! សូមឆែកមើល Telegram របស់អ្នក។", () => { tg.close(); });
+                
+                if (response.ok) {
+                    tg.showAlert("✅ ការបញ្ជាទិញជោគជ័យ! សូមពិនិត្យសារ Telegram របស់អ្នក ដើម្បីធ្វើការទូទាត់ប្រាក់។", () => {
+                        tg.close();
+                    });
                 } else {
-                    tg.showAlert("❌ មានបញ្ហាក្នុងការបញ្ជូន។");
+                    tg.showAlert("❌ មានកំហុសក្នុងការបញ្ជាទិញ។");
+                    btn.innerText = "Checkout 🚀";
+                    btn.disabled = false;
                 }
-            } catch(e) {
-                tg.showAlert("❌ មិនអាចភ្ជាប់ទៅ Server បានទេ។");
-            } finally {
-                tg.MainButton.hideProgress();
+            } catch (err) {
+                tg.showAlert("❌ សូមពិនិត្យប្រព័ន្ធអ៊ីនធឺណិតរបស់អ្នក។");
+                btn.innerText = "Checkout 🚀";
+                btn.disabled = false;
             }
-        });
+        }
 
-        initApp();
+        // ចាប់ផ្តើមទាញយកទិន្នន័យ
+        fetchMenu();
     </script>
 </body>
 </html>
