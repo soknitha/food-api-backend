@@ -1,17 +1,19 @@
+import warnings
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import os
-import io
-import qrcode
 import requests
 from supabase import create_client, Client
 import telebot
 from telegram_bot import bot
 from google import genai
 from google.genai import types
+
+# បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
+warnings.filterwarnings("ignore")
 
 # ---------------- ភ្ជាប់ Webhook របស់ Telegram Bot ---------------- #
 WEBHOOK_URL = "https://web-production-88028.up.railway.app/webhook"
@@ -263,18 +265,22 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
     order = None
     if USE_SUPABASE:
         res = supabase.table("orders").select("*").eq("id", order_id).execute()
-        if res.data: order = res.data[0]
+        if res.data:
+            order = res.data[0]
     else:
         for o in orders_db:
             if o["id"] == order_id:
                 order = o
                 break
-    if not order: return
+    if not order:
+        return
     
     new_items = order["items"]
     current_total_str = order["total"].replace("$", "").replace(",", "")
-    try: current_total = float(current_total_str)
-    except: current_total = 0.0
+    try:
+        current_total = float(current_total_str)
+    except Exception:
+        current_total = 0.0
     
     if fee > 0:
         new_items += f", 🛵 ថ្លៃដឹកជញ្ជូន ({distance:.1f}km) x1 (${fee:.2f})"
@@ -364,18 +370,26 @@ def process_location_api(data: ProcessLocationReq):
     STORE_LON = 104.9282
     dist = calculate_distance(STORE_LAT, STORE_LON, data.lat, data.lon)
     
-    if dist <= 1: fee = 0.50
-    elif dist <= 5: fee = 1.00
-    elif dist <= 7: fee = 1.50
-    elif dist <= 9: fee = 2.00
-    elif dist <= 15: fee = 2.50
-    elif dist <= 20: fee = 3.50
-    else: fee = 4.00
+    if dist <= 1:
+        fee = 0.50
+    elif dist <= 5:
+        fee = 1.00
+    elif dist <= 7:
+        fee = 1.50
+    elif dist <= 9:
+        fee = 2.00
+    elif dist <= 15:
+        fee = 2.50
+    elif dist <= 20:
+        fee = 3.50
+    else:
+        fee = 4.00
     
     order_to_process = None
     if USE_SUPABASE:
         res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "រង់ចាំទីតាំង").execute()
-        if res.data: order_to_process = res.data[-1]
+        if res.data:
+            order_to_process = res.data[-1]
     else:
         for o in reversed(orders_db):
             if str(o.get("chat_id")) == data.chat_id and o.get("status") == "រង់ចាំទីតាំង":
@@ -475,7 +489,7 @@ def generate_receipt_image(order_data, amount_paid):
             font_title = ImageFont.truetype("arialbd.ttf", 26)
             font_text = ImageFont.truetype("arial.ttf", 18)
             font_bold = ImageFont.truetype("arialbd.ttf", 18)
-        except:
+        except Exception:
             font_title = font_text = font_bold = ImageFont.load_default()
 
         y = 30
@@ -518,7 +532,8 @@ def upload_receipt(data: OrderReceipt):
     pending_order = None
     if USE_SUPABASE:
         res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "ថ្មី (រង់ចាំការបញ្ជាក់)").execute()
-        if res.data: pending_order = res.data[-1]
+        if res.data:
+            pending_order = res.data[-1]
     else:
         for order in reversed(orders_db):
             if str(order.get("chat_id")) == str(data.chat_id) and order.get("status") == "ថ្មី (រង់ចាំការបញ្ជាក់)":
@@ -530,8 +545,10 @@ def upload_receipt(data: OrderReceipt):
         
     # ទាញយកទឹកប្រាក់ដែលត្រូវទូទាត់សរុប
     expected_total_str = pending_order["total"].replace("$", "").replace(",", "").strip()
-    try: expected_total = float(expected_total_str)
-    except: expected_total = 0.0
+    try:
+        expected_total = float(expected_total_str)
+    except Exception:
+        expected_total = 0.0
 
     # ---------------- មុខងារ AI Verification ---------------- #
     # ទាញយក GEMINI API KEY ពី telegram_bot ដោយផ្ទាល់ ដើម្បីធានាថាវាមិនទទេស្អាត
@@ -574,8 +591,10 @@ def upload_receipt(data: OrderReceipt):
             ai_reason = "មានបញ្ហាភ្ជាប់ទៅកាន់ប្រព័ន្ធ AI ស្កេនរូបភាព"
 
     if is_valid:
-        if USE_SUPABASE: supabase.table("orders").update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"}).eq("id", pending_order["id"]).execute()
-        else: pending_order.update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"})
+        if USE_SUPABASE:
+            supabase.table("orders").update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"}).eq("id", pending_order["id"]).execute()
+        else:
+            pending_order.update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"})
         
         receipt_png = generate_receipt_image(pending_order, extracted_amount)
         admin_msg = f"✅ *អតិថិជនបានទូទាត់ប្រាក់ជោគជ័យ!*\n🧾 វិក្កយបត្រ: `{pending_order['id']}`\n💰 បានទូទាត់: `${extracted_amount}`\n🏦 គណនី: {acc_name}\n🆔 Trx ID: `{trx_id}`"
@@ -696,9 +715,12 @@ def add_user(user: UserItem):
         res = supabase.table("users").select("*").eq("id", user_id_str).execute()
         if res.data:
             update_data = {"name": user.name}
-            if user.phone and user.phone != "N/A": update_data["phone"] = user.phone
-            if user.location: update_data["location"] = user.location
-            if user.language: update_data["language"] = user.language
+            if user.phone and user.phone != "N/A":
+                update_data["phone"] = user.phone
+            if user.location:
+                update_data["location"] = user.location
+            if user.language:
+                update_data["language"] = user.language
             response = supabase.table("users").update(update_data).eq("id", user_id_str).execute()
             return response.data[0] if response.data else None
         else:
@@ -708,9 +730,12 @@ def add_user(user: UserItem):
     for u in users_db:
         if str(u.get("id")) == user_id_str or str(u.get("chat_id")) == user_id_str:
             u["name"] = user.name
-            if user.phone and user.phone != "N/A": u["phone"] = user.phone
-            if user.location: u["location"] = user.location
-            if user.language: u["language"] = user.language
+            if user.phone and user.phone != "N/A":
+                u["phone"] = user.phone
+            if user.location:
+                u["location"] = user.location
+            if user.language:
+                u["language"] = user.language
             return u
             
     new_user = {"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", ""), "language": user.language or "km"}
@@ -731,10 +756,12 @@ def delete_user(user_id: str):
 def get_user(user_id: str):
     if USE_SUPABASE:
         res = supabase.table("users").select("*").eq("id", user_id).execute()
-        if res.data: return res.data[0]
+        if res.data:
+            return res.data[0]
     else:
         for u in users_db:
-            if str(u.get("id")) == user_id or str(u.get("chat_id")) == user_id: return u
+            if str(u.get("id")) == user_id or str(u.get("chat_id")) == user_id:
+                return u
     return {}
 
 # ---------------- ទាញយកពិន្ទុអតិថិជនតាម Chat ID ---------------- #
@@ -764,12 +791,14 @@ def get_config():
 
 @app.post("/api/config")
 def update_config(config: AppConfig):
-    app_config_db.update(config.dict())
+    app_config_db.update(config.model_dump())
     if USE_SUPABASE:
         try:
             res = supabase.table("config").select("id").eq("id", 1).execute()
-            if res.data: supabase.table("config").update(config.dict()).eq("id", 1).execute()
-            else: supabase.table("config").insert({"id": 1, **config.dict()}).execute()
+            if res.data:
+                supabase.table("config").update(config.model_dump()).eq("id", 1).execute()
+            else:
+                supabase.table("config").insert({"id": 1, **config.model_dump()}).execute()
         except Exception as e:
             print("Error saving config:", e)
     return app_config_db
@@ -778,7 +807,7 @@ def update_config(config: AppConfig):
 @app.post("/api/crm/messages")
 def add_crm_message(msg: ChatMessage):
     from datetime import datetime
-    record = msg.dict()
+    record = msg.model_dump()
     record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     if USE_SUPABASE:
         try:
@@ -811,7 +840,7 @@ def reply_crm_message(msg: ChatMessage):
     # កត់ត្រាទុកថា Admin ទើបតែបានឆាតជាមួយភ្ញៀវម្នាក់នេះ (ដើម្បីបិទ AI)
     admin_active_chats[msg.chat_id] = time.time()
 
-    record = msg.dict()
+    record = msg.model_dump()
     record["is_admin"] = True
     record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     if USE_SUPABASE:

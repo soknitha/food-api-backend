@@ -1,10 +1,12 @@
+import warnings
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton
 import requests
 import os
-import io
-import qrcode
 from google import genai
+
+# បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
+warnings.filterwarnings("ignore")
 
 # ដាក់ Token របស់ Bot អ្នកដែលបានពី BotFather នៅទីនេះ
 BOT_TOKEN = os.getenv("BOT_TOKEN", "1234567890:DummyTokenToPreventCrash12345")
@@ -65,7 +67,8 @@ def get_user_lang(chat_id):
             lang = res.json().get("language", "km")
             user_langs[chat_id] = lang
             return lang
-    except: pass
+    except Exception:
+        pass
     return "km"
 
 @bot.message_handler(commands=['start'])
@@ -120,7 +123,7 @@ def set_language(call):
 
     try:
         bot.delete_message(chat_id, call.message.message_id)     # លុបប៊ូតុង
-    except:
+    except Exception:
         pass
         
     show_main_menu(chat_id, lang)
@@ -145,15 +148,19 @@ def handle_delivery_choice(call):
     
     if action == "pickup":
         requests.post(f"{API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0})
-        try: bot.delete_message(chat_id, call.message.message_id)
-        except: pass
+        try:
+            bot.delete_message(chat_id, call.message.message_id)
+        except Exception:
+            pass
     elif action == "delivery":
         requests.put(f"{API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"})
         reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         reply_markup.add(KeyboardButton("📍 ផ្ញើទីតាំងរបស់ខ្ញុំ (Send Location)", request_location=True))
         bot.send_message(chat_id, "📍 *សូមផ្ញើទីតាំងរបស់អ្នក*\n\nសូមចុចប៊ូតុងខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធវ័យឆ្លាតគណនាថ្លៃសេវាដឹកជញ្ជូនដោយស្វ័យប្រវត្តិ៖", reply_markup=reply_markup, parse_mode="Markdown")
-        try: bot.delete_message(chat_id, call.message.message_id)
-        except: pass
+        try:
+            bot.delete_message(chat_id, call.message.message_id)
+        except Exception:
+            pass
 
 # ---------------- ទទួលព័ត៌មានពីការចុចប៊ូតុងផ្ញើទូរស័ព្ទ និង ទីតាំង ---------------- #
 @bot.message_handler(content_types=['contact'])
@@ -218,7 +225,7 @@ def handle_payment_screenshot(message):
                 bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
         else:
             bot.reply_to(message, "❌ សូមអភ័យទោស ប្រព័ន្ធមិនអាចភ្ជាប់ទៅកាន់ Admin បានទេពេលនេះ។")
-    except Exception as e:
+    except Exception:
         bot.reply_to(message, "❌ មានកំហុសក្នុងការទទួលរូបភាព។")
 
 # បិទមុខងារវាយអក្សរបញ្ចូលក្នុង Bot (Block Text Messaging)
@@ -230,7 +237,7 @@ def block_text(message):
     
     try:
         bot.delete_message(chat_id, message.message_id) # លុបសារដែលភ្ញៀវវាយចូល
-    except:
+    except Exception:
         pass
         
     # លោតប្រាប់ថាប្រព័ន្ធប្រើបានតែប៊ូតុង
