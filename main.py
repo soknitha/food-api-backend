@@ -34,7 +34,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ដាក់ Token របស់ Bot សម្រាប់ផ្ញើសារចេញពី Server ត្រឡប់ទៅអតិថិជនវិញ
-BOT_TOKEN = "8704188082:AAGhvmMZqcpdMrvIhDVYSNowWBbyS5z_bkY"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
 # ---------------- ការកំណត់ Supabase Database ---------------- #
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://rqiakbzssjavyxbfcqhy.supabase.co")

@@ -7,7 +7,7 @@ import qrcode
 from google import genai
 
 # ដាក់ Token របស់ Bot អ្នកដែលបានពី BotFather នៅទីនេះ
-BOT_TOKEN = "8704188082:AAGhvmMZqcpdMrvIhDVYSNowWBbyS5z_bkY"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
 # ដាក់ Link ដែលអ្នកទទួលបានពី Railway (កុំភ្លេចថែម /api នៅខាងចុង)
 API_BASE_URL = "https://web-production-88028.up.railway.app/api"
