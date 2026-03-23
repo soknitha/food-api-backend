@@ -4,6 +4,9 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 import requests
 import os
 from google import genai
+from dotenv import load_dotenv
+
+load_dotenv() # ទាញយកទិន្នន័យពីឯកសារ .env (បើមាន)
 
 # បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
 warnings.filterwarnings("ignore")

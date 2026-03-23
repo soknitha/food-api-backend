@@ -11,6 +11,9 @@ import telebot
 from telegram_bot import bot
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
+
+load_dotenv() # ទាញយកទិន្នន័យពីឯកសារ .env (បើមាន)
 
 # បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
 warnings.filterwarnings("ignore")
