@@ -16,7 +16,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "1234567890:DummyTokenToPreventCrash12345")
 
 # ប្រើប្រាស់ Localhost ដើម្បីឱ្យ Server អាចទាក់ទងខ្លួនឯងបានលឿន និងមិនគាំង (Deadlock)
 local_port = os.environ.get("PORT", 8000)
-API_BASE_URL = "https://web-production-88028.up.railway.app/api"
+API_BASE_URL = f"http://127.0.0.1:{local_port}/api"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -26,7 +26,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "ដាក់_API_KEY_GEMINI_នៅ
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Link ទៅកាន់ Mini App ដែលដំណើរការចេញពី Railway ផ្ទាល់
-MINI_APP_URL = "https://web-production-88028.up.railway.app/miniapp"
+# ទាញយក Domain ដោយស្វ័យប្រវត្តិ ការពារបញ្ហាដូរ Link លើ Railway
+DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app")
+MINI_APP_URL = f"https://{DOMAIN}/miniapp"
 
 # ---------------- ការកំណត់ភាសា (Language Settings) ---------------- #
 user_langs = {}
@@ -78,6 +80,7 @@ def get_user_lang(chat_id):
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text == '🔄 /start')
 def send_welcome(message):
+    print(f"📥 ទទួលបានពាក្យបញ្ជា /start ពីអតិថិជន: {message.chat.id}")
     # រក្សាទុកព័ត៌មាន User ដោយស្វ័យប្រវត្តិ
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name or "N/A"

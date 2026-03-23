@@ -19,7 +19,9 @@ load_dotenv() # ទាញយកទិន្នន័យពីឯកសារ .en
 warnings.filterwarnings("ignore")
 
 # ---------------- ភ្ជាប់ Webhook របស់ Telegram Bot ---------------- #
-WEBHOOK_URL = "https://web-production-88028.up.railway.app/webhook"
+# ទាញយក Domain របស់ Railway ដោយស្វ័យប្រវត្តិ (ការពារបញ្ហាដូរ Link)
+DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app")
+WEBHOOK_URL = f"https://{DOMAIN}/webhook"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -167,6 +169,7 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
         # ទទួលយកទិន្នន័យដើម (Raw Body) ពី Telegram ដើម្បីការពារការខូចទ្រង់ទ្រាយអក្សរ (Unicode/Khmer)
         body = await request.body()
         json_string = body.decode('utf-8')
+        print(f"🔔 ទទួលបានសារពី Telegram: {json_string[:100]}...")
         background_tasks.add_task(process_update, json_string)
     except Exception as e:
         print(f"Webhook error: {e}")
