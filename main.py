@@ -12,76 +12,54 @@ import telebot
 from telegram_bot import bot
 from google import genai
 from google.genai import types
-from dotenv import load_dotenv
 
-load_dotenv()
-
-# ----------------
-# ការកំណត់ និងការត្រួតពិនិត្យ Environment Variables
-# ----------------
-# កំណត់អត្តសញ្ញាណអថេរដែលត្រូវការចាំបាច់
-# Terminate app if critical environment variables are missing
-REQUIRED_VARS = [
-    "BOT_TOKEN",
-    "SUPABASE_URL",
-    "SUPABASE_KEY",
-    "GEMINI_API_KEY",
-    "RAILWAY_PUBLIC_DOMAIN"
-]
-missing_vars = [var for var in REQUIRED_VARS if not os.getenv(var)]
-if missing_vars:
-    # បង្ហាញ Error និងបញ្ឈប់កម្មវិធីប្រសិនបើមិនមានអថេរចាំបាច់
-    error_message = f"❌ Critical Error: Missing environment variables: {', '.join(missing_vars)}"
-    print(error_message, file=sys.stderr)
-    sys.exit(f"Application cannot start due to missing configuration: {', '.join(missing_vars)}.")
-
-# ទាញយកតម្លៃ Environment Variables 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN")
-WEBHOOK_URL = f"https://{DOMAIN}/webhook"
+# Import the centralized configuration
+import config
 
 # បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
 warnings.filterwarnings("ignore")
 
-# ---------------- Lifespan Manager សម្រាប់ Telegram Bot Webhook ---------------- #
+# ---------------- Lifespan Manager for Telegram Bot Webhook ---------------- #
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Manages the Telegram webhook setup and removal during the application's lifespan.
-    Ensures the webhook is correctly pointed to the Railway public domain.
+    Ensures the webhook is correctly pointed to the public domain from config.
     """
     try:
-        print(f"ℹ️  Attempting to set webhook to: {WEBHOOK_URL}")
-        bot.remove_webhook()  # Always remove old webhook first
-        bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
+        print(f"ℹ️  Attempting to set webhook to: {config.WEBHOOK_URL}")
+        bot.remove_webhook()
+        bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True)
         
         # Verify webhook is set correctly
         webhook_info = bot.get_webhook_info()
-        if webhook_info.url == WEBHOOK_URL:
-            print(f"✅ Webhook successfully set to: {WEBHOOK_URL}")
+        if webhook_info.url == config.WEBHOOK_URL:
+            print(f"✅ Webhook successfully set to: {config.WEBHOOK_URL}")
         else:
-            print(f"⚠️ Webhook mismatch. Expected {WEBHOOK_URL}, but found {webhook_info.url}. Retrying...")
-            bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True) # Retry setting
+            print(f"⚠️ Webhook mismatch. Expected {config.WEBHOOK_URL}, but found {webhook_info.url}. Retrying...", file=sys.stderr)
+            bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True) # Retry setting
             webhook_info = bot.get_webhook_info()
-            if webhook_info.url == WEBHOOK_URL:
-                 print(f"✅ Webhook successfully reset to: {WEBHOOK_URL}")
+            if webhook_info.url == config.WEBHOOK_URL:
+                 print(f"✅ Webhook successfully reset to: {config.WEBHOOK_URL}")
             else:
-                 print(f"❌ FATAL: Failed to set webhook after retry. Please check bot token and domain. Found: {webhook_info.url}")
+                 # If it fails again, this is a fatal error for the bot's functionality.
+                 error_msg = f"❌ FATAL: Failed to set webhook after retry. Found: {webhook_info.url}"
+                 print(error_msg, file=sys.stderr)
+                 sys.exit("Application cannot start because Telegram webhook initialization failed.")
 
     except Exception as e:
         print(f"❌ FATAL: Could not set webhook: {e}", file=sys.stderr)
-        # Consider stopping the app if webhook is critical
-        # sys.exit("Could not initialize Telegram webhook.")
+        sys.exit("Could not initialize Telegram webhook due to an exception.")
+    
     yield
+    
     # Clean up and remove webhook on shutdown
     print("ℹ️  Application shutting down. Removing webhook...")
     try:
         bot.remove_webhook()
         print("✅ Webhook removed successfully.")
     except Exception as e:
-        print(f"⚠️ Warning: Could not remove webhook on shutdown: {e}")
+        print(f"⚠️ Warning: Could not remove webhook on shutdown: {e}", file=sys.stderr)
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
 
@@ -90,9 +68,9 @@ UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ---------------- ការកំណត់ Supabase Database ---------------- #
+# ---------------- Supabase Database Connection ---------------- #
 try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
     USE_SUPABASE = True
     print("✅ Successfully connected to Supabase! Data will be persistent.")
 except Exception as e:
@@ -269,7 +247,7 @@ def create_order(order: OrderCreate):
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
         kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}"
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
         
     return new_order
 
@@ -314,7 +292,7 @@ def miniapp_checkout(order: OrderCreate):
             ]
         }
         msg_text = f"🎉 *ទទួលបានការកុម្ម៉ង់បឋម!*\n\n🧾 លេខវិក្កយបត្រ: `{new_order['id']}`\n\nតើលោកអ្នកចង់មកយកផ្ទាល់ ឬឱ្យហាងដឹកជូន?"
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={
             "chat_id": order.chat_id,
             "text": msg_text,
             "parse_mode": "Markdown",
@@ -362,7 +340,7 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
         kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Mini App)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n🛒 *មុខម្ហូប:*\n{order['items'].replace(', ', '%0A')}"
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
 
     user_phone = "មិនមាន"
     user_loc = "មិនមាន"
@@ -404,12 +382,12 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
         with open(qr_path, "rb") as f:
             qr_bytes = f.read()
         
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={'chat_id': "@XiaoYueXiaoChi", 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': "@XiaoYueXiaoChi", 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
     else:
         # បម្រុងទុក (Fallback)៖ បើសិនជាបាត់រូប aba_qr.jpg ក៏វានៅតែបាញ់អត្ថបទវិក្កយបត្រទៅដែរ
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={'chat_id': "@XiaoYueXiaoChi", 'text': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': "@XiaoYueXiaoChi", 'text': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'})
 
 @app.post("/api/orders/finalize")
 def finalize_order_api(data: FinalizeOrderData):
@@ -481,7 +459,7 @@ def update_order_status(status_update: OrderStatusUpdate):
         # បាញ់សារទៅប្រាប់អតិថិជនតាម Telegram ពេល Admin ប្តូរស្ថានភាព
         if order.get("chat_id"):
             msg_text = f"🔔 *ជម្រាបសួរ {order['customer']}*\nការកុម្ម៉ង់លេខ {order['id']} របស់អ្នកត្រូវបានប្តូរស្ថានភាពទៅជា៖ *{status_update.status}*"
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": msg_text, "parse_mode": "Markdown"})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": msg_text, "parse_mode": "Markdown"})
             
         # ---------------- មុខងារ Loyalty Points ---------------- #
         if status_update.status == "✅ រួចរាល់ (បានប្រគល់)":
@@ -520,16 +498,16 @@ def update_order_status(status_update: OrderStatusUpdate):
 
                     if order.get("chat_id"):
                         pts_msg = f"🎁 *អបអរសាទរ!* អ្នកទទួលបាន *{points_earned} ពិន្ទុសន្សំ* ពីការទិញនេះ។\nបច្ចុប្បន្នអ្នកមានពិន្ទុសរុប៖ *{new_points} ពិន្ទុ* 🌟"
-                        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": pts_msg, "parse_mode": "Markdown"})
+                        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": pts_msg, "parse_mode": "Markdown"})
                         
                         # ---- ផ្ញើសារ Promotion ដោយស្វ័យប្រវត្តិ ---- #
                         old_points = new_points - points_earned
                         if new_points >= 50 and old_points < 50:
                             promo_msg = "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអ្នកសន្សំបាន ៥០ ពិន្ទុហើយ! 🎁\nយើងខ្ញុំសូមជូន *ភេសជ្ជៈ ១ កែវ ឥតគិតថ្លៃ* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
-                            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
+                            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
                         elif new_points >= 100 and old_points < 100:
                             promo_msg = "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអស្ចារ្យណាស់! អ្នកសន្សំបាន ១០០ ពិន្ទុ! 🎁\nយើងខ្ញុំសូមជូន *ការបញ្ចុះតម្លៃ $5.00* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
-                            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
+                            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
             except Exception as e:
                 print("Error adding points:", e)
                 
@@ -537,55 +515,68 @@ def update_order_status(status_update: OrderStatusUpdate):
     return {"error": "Order not found"}
 
 def generate_receipt_image(order_data, amount_paid):
+    """ Generates a PNG receipt image with proper Khmer font support. """
     try:
         from PIL import Image, ImageDraw, ImageFont
         import io
         from datetime import datetime
         
-        width = 450
-        height = 650
+        width, height = 450, 650
         img = Image.new('RGB', (width, height), color=(250, 250, 250))
         d = ImageDraw.Draw(img)
         
+        # Load the beautiful Khmer font
         try:
-            font_title = ImageFont.truetype("arialbd.ttf", 26)
-            font_text = ImageFont.truetype("arial.ttf", 18)
-            font_bold = ImageFont.truetype("arialbd.ttf", 18)
-        except Exception:
+            if not os.path.exists(config.KHMER_FONT_PATH):
+                raise FileNotFoundError(f"Font file not found at {config.KHMER_FONT_PATH}")
+            font_title = ImageFont.truetype(config.KHMER_FONT_PATH, 28)
+            font_text = ImageFont.truetype(config.KHMER_FONT_PATH, 20)
+            font_bold = ImageFont.truetype(config.KHMER_FONT_PATH, 22)
+        except Exception as e:
+            print(f"⚠️  Font Error: {e}. Falling back to default font.", file=sys.stderr)
             font_title = font_text = font_bold = ImageFont.load_default()
 
+        # --- Drawing content ---
         y = 30
-        d.text((width/2, y), "XIAO YUE XIAO CHI", fill=(0,0,0), font=font_title, anchor="mt")
+        d.text((width/2, y), "វិក្កយបត្រ / Receipt", fill=(0,0,0), font=font_title, anchor="mt")
+        y += 50
+        d.line([(20, y), (width-20, y)], fill=(50,50,50), width=1)
+        y += 20
+
+        d.text((30, y), f"លេខវិក្កយបត្រ: {order_data['id']}", fill=(0,0,0), font=font_text)
+        d.text((width-30, y), f"{datetime.now().strftime('%d/%m/%Y')}", fill=(0,0,0), font=font_text, anchor="ra")
+        y += 30
+        d.text((30, y), f"អតិថិជន: {order_data['customer']}", fill=(0,0,0), font=font_text)
         y += 40
-        d.text((width/2, y), "--------------------------------------------------", fill=(0,0,0), font=font_text, anchor="mt")
-        y += 25
-        d.text((30, y), f"Receipt: {order_data['id']}", fill=(0,0,0), font=font_bold)
-        d.text((250, y), f"Date: {datetime.now().strftime('%d/%m/%Y')}", fill=(0,0,0), font=font_text)
-        y += 30
-        d.text((30, y), f"Customer: {order_data['customer']}", fill=(0,0,0), font=font_text)
-        y += 30
-        d.text((width/2, y), "==================================", fill=(0,0,0), font=font_text, anchor="mt")
-        y += 25
+        
+        d.text((30, y), "รายการ / Items", fill=(0,0,0), font=font_bold)
+        y += 35
         items = order_data["items"].split(",")
         for item in items:
             if item.strip():
                 d.text((30, y), item.strip()[:40], fill=(0,0,0), font=font_text)
                 y += 30
-        d.text((width/2, y), "--------------------------------------------------", fill=(0,0,0), font=font_text, anchor="mt")
-        y += 25
-        d.text((30, y), "Total Due:", fill=(0,0,0), font=font_bold)
-        d.text((330, y), f"{order_data['total']}", fill=(0,0,0), font=font_bold)
-        y += 30
-        d.text((30, y), "Amount Paid:", fill=(0,0,0), font=font_bold)
-        d.text((330, y), f"${float(amount_paid):.2f}", fill=(39, 174, 96), font=font_bold)
+        y += 10
+        d.line([(20, y), (width-20, y)], fill=(150,150,150), width=1)
+        y += 20
+        
+        d.text((30, y), "សរុប / Total Due:", fill=(0,0,0), font=font_bold)
+        d.text((width-30, y), f"{order_data['total']}", fill=(0,0,0), font=font_bold, anchor="ra")
+        y += 35
+        d.text((30, y), "បានបង់ / Amount Paid:", fill=(0,0,0), font=font_bold)
+        d.text((width-30, y), f"${float(amount_paid):.2f}", fill=(39, 174, 96), font=font_bold, anchor="ra")
+        y += 60
+        
+        d.text((width/2, y), "*** បង់ប្រាក់រួចរាល់ ***", fill=(39, 174, 96), font=font_title, anchor="mt")
         y += 40
-        d.text((width/2, y), "*** PAID SUCCESSFULLY ***", fill=(39, 174, 96), font=font_title, anchor="mt")
+        d.text((width/2, y), "សូមអរគុណ!", fill=(0,0,0), font=font_text, anchor="mt")
+        
         bio = io.BytesIO()
         img.save(bio, format="PNG")
         bio.seek(0)
         return bio.getvalue()
     except Exception as e:
-        print("Error generating receipt image:", e)
+        print(f"❌ Error generating receipt image: {e}", file=sys.stderr)
         return None
 
 @app.post("/api/orders/receipt")
@@ -661,17 +652,17 @@ def upload_receipt(data: OrderReceipt):
         receipt_png = generate_receipt_image(pending_order, extracted_amount)
         admin_msg = f"✅ *អតិថិជនបានទូទាត់ប្រាក់ជោគជ័យ!*\n🧾 វិក្កយបត្រ: `{pending_order['id']}`\n💰 បានទូទាត់: `${extracted_amount}`\n🏦 គណនី: {acc_name}\n🆔 Trx ID: `{trx_id}`"
         if receipt_png:
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={"chat_id": "@XiaoYueXiaoChi", "caption": admin_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": "@XiaoYueXiaoChi", "caption": admin_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
             user_msg = "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!* នេះជាវិក្កយបត្រផ្លូវការ។ សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵"
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data={"chat_id": data.chat_id, "caption": user_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": data.chat_id, "caption": user_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
         else:
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": data.chat_id, "text": "✅ *ការទូទាត់ជោគជ័យ!* សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵", "parse_mode": "Markdown"})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": data.chat_id, "text": "✅ *ការទូទាត់ជោគជ័យ!* សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵", "parse_mode": "Markdown"})
             
         return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True}
     else:
         admin_msg = f"⚠️ *ការព្រមានពីប្រព័ន្ធ AI (ការទូទាត់មានបញ្ហា)!*\n\nការកុម្ម៉ង់លេខ `{pending_order['id']}` របស់អតិថិជន {pending_order['customer']} ត្រូវបានរកឃើញភាពមិនប្រក្រតី។\n\n📉 តម្រូវការទឹកប្រាក់: `${expected_total}`\n🔍 មូលហេតុពី AI: {ai_reason}\n\nសូម Admin ពិនិត្យឡើងវិញជាបន្ទាន់ជាមួយភ្ញៀវ។"
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
         return {"error": "Payment verification failed", "reason": ai_reason, "verified": False}
 
 @app.get("/api/menu")
@@ -757,8 +748,7 @@ def upload_image(file: UploadFile = File(...)):
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Construct URL dynamically
-        local_image_url = f"https://{DOMAIN}/static/uploads/{file.filename}"
+        local_image_url = f"https://{config.DOMAIN}/static/uploads/{file.filename}"
         return {"image_url": local_image_url}
 
     except Exception as e:
@@ -901,7 +891,7 @@ def reply_crm_message(msg: ChatMessage):
     import time
     from datetime import datetime
     # ផ្ញើទៅកាន់ Telegram របស់អ្នកប្រើប្រាស់
-    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": msg.chat_id, "text": f"👨‍💼 *Admin:* {msg.text}", "parse_mode": "Markdown"})
+    requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": msg.chat_id, "text": f"👨‍💼 *Admin:* {msg.text}", "parse_mode": "Markdown"})
     
     # កត់ត្រាទុកថា Admin ទើបតែបានឆាតជាមួយភ្ញៀវម្នាក់នេះ (ដើម្បីបិទ AI)
     admin_active_chats[msg.chat_id] = time.time()
@@ -938,11 +928,11 @@ def broadcast_message(req: BroadcastRequest):
             
     count = 0
     for cid in chat_ids:
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": cid, "text": f"📢 *សេចក្តីជូនដំណឹង:*\n{req.text}", "parse_mode": "Markdown"})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": cid, "text": f"📢 *សេចក្តីជូនដំណឹង:*\n{req.text}", "parse_mode": "Markdown"})
         count += 1
     return {"sent": count}
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    print(f"Starting server on http://0.0.0.0:{config.PORT}")
+    uvicorn.run(app, host="0.0.0.0", port=config.PORT)

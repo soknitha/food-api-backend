@@ -6,36 +6,26 @@ import os
 import sys
 from google import genai
 
-# បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
+# Import the centralized configuration
+import config
+
+# Suppress all warnings
 warnings.filterwarnings("ignore")
 
 # ----------------
-# ការកំណត់ និងការត្រួតពិនិត្យ Environment Variables
+# Initialize Bot and AI Client from Central Config
 # ----------------
-# Environment variables are validated in main.py, so we can use them directly here.
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN")
-
-# ប្រើប្រាស់ Localhost ដើម្បីឱ្យ Server អាចទាក់ទងខ្លួនឯងបានលឿន និងមិនគាំង (Deadlock)
-local_port = os.environ.get("PORT", 8000)
-API_BASE_URL = f"http://127.0.0.1:{local_port}/api"
-
-# Link ទៅកាន់ Mini App ដែលដំណើរការចេញពី Railway ផ្ទាល់
-MINI_APP_URL = f"https://{DOMAIN}/miniapp"
-
-# Initialize TeleBot and Gemini Client
 try:
-    bot = telebot.TeleBot(BOT_TOKEN)
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    bot = telebot.TeleBot(config.BOT_TOKEN)
+    # The Gemini client is now initialized in main.py, but we can also initialize it here if needed for direct use.
+    # For now, the AI verification part in main.py handles it.
 except Exception as e:
-    print(f"❌ FATAL: Could not initialize bot or Gemini client: {e}", file=sys.stderr)
+    print(f"❌ FATAL: Could not initialize bot client: {e}", file=sys.stderr)
     sys.exit("Exiting due to initialization failure.")
 
 
-# ---------------- ការកំណត់ភាសា (Language Settings) ---------------- #
+# ---------------- Language Settings ---------------- #
 user_langs = {}
-
 LANG_DICT = {
     "km": {
         "welcome": "🌟 *សូមស្វាគមន៍មកកាន់ 小月小吃!*\n\nយើងខ្ញុំផ្តល់ជូននូវបទពិសោធន៍ម្ហូបអាហារដ៏ឈ្ងុយឆ្ងាញ់ ប្រកបដោយអនាម័យ និងស្តង់ដារគុណភាពខ្ពស់បំផុត។ សូមរីករាយជាមួយសេវាកម្មកុម្ម៉ង់អាហារឌីជីថលរបស់យើងខ្ញុំ។",
@@ -66,199 +56,152 @@ LANG_DICT = {
     }
 }
 
-# អនុគមន៍ជំនួយក្នុងការទាញយកភាសាពី Database ជានិរន្តរ៍
 def get_user_lang(chat_id):
+    """ Fetches user language from the backend, with a local cache. """
     if chat_id in user_langs:
         return user_langs[chat_id]
     try:
-        res = requests.get(f"{API_BASE_URL}/users/{chat_id}", timeout=5)
+        res = requests.get(f"{config.API_BASE_URL}/users/{chat_id}", timeout=5)
         if res.status_code == 200 and res.json():
             lang = res.json().get("language", "km")
             user_langs[chat_id] = lang
             return lang
-    except Exception:
-        pass
-    return "km"
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Could not fetch user lang for {chat_id}: {e}", file=sys.stderr)
+    return "km" # Default to Khmer
 
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text == '🔄 /start')
 def send_welcome(message):
-    print(f"📥 ទទួលបានពាក្យបញ្ជា /start ពីអតិថិជន: {message.chat.id}")
-    # រក្សាទុកព័ត៌មាន User ដោយស្វ័យប្រវត្តិ
-    user_id = str(message.from_user.id)
-    user_name = message.from_user.first_name or "N/A"
-    
+    print(f"📥 Received /start command from user: {message.chat.id}")
     try:
-        response = requests.post(f"{API_BASE_URL}/users", json={"id": user_id, "name": user_name, "phone": "N/A", "location": ""}, timeout=5)
-        if response.status_code == 200:
-            user_data = response.json()
-            if user_data and "language" in user_data:
-                user_langs[message.chat.id] = user_data["language"]
+        # Register or update user info via API
+        requests.post(f"{config.API_BASE_URL}/users", json={
+            "id": str(message.from_user.id), "name": message.from_user.first_name or "N/A", "language": "km"
+        }, timeout=5)
     except Exception as e:
-        print("Error saving initial user:", e)
+        print(f"⚠️ Error saving initial user {message.chat.id}: {e}", file=sys.stderr)
 
-    # បង្កើត Reply Keyboard (ជំនួសកន្លែងវាយអក្សរ)
-    reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមប្រើប្រាស់ប៊ូតុងខាងក្រោម...")
+    # Main reply keyboard
+    reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 Please use the buttons below...")
     reply_markup.add(
-        KeyboardButton("🔄 /start")
+        KeyboardButton("🔄 /start"),
+        KeyboardButton("📱 Send Phone", request_contact=True),
+        KeyboardButton("📍 Send Location", request_location=True)
     )
-    reply_markup.add(
-        KeyboardButton("📱 ផ្ញើលេខទូរស័ព្ទ", request_contact=True),
-        KeyboardButton("📍 ផ្ញើទីតាំង", request_location=True)
-    )
-    bot.send_message(message.chat.id, "កំពុងរៀបចំប្រព័ន្ធ... / System initializing...", reply_markup=reply_markup)
+    bot.send_message(message.chat.id, "Initializing...", reply_markup=reply_markup)
 
-    # ជម្រើសភាសា (Language Selection)
+    # Language selection
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
         InlineKeyboardButton("🇰🇭 ភាសាខ្មែរ", callback_data="lang_km"),
         InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh"),
         InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")
     )
+    bot.send_message(message.chat.id, "🌐 Please select your language:", reply_markup=markup)
 
-    bot.send_message(message.chat.id, "🌐 សូមជ្រើសរើសភាសា\n🌐 请选择语言\n🌐 Please select your language:", reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data in ["lang_km", "lang_zh", "lang_en"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def set_language(call):
-    bot.answer_callback_query(call.id) # ប្រាប់ Telegram ថាទទួលបានការចុច
+    bot.answer_callback_query(call.id)
     lang = call.data.split("_")[1]
     chat_id = call.message.chat.id
     user_langs[chat_id] = lang
     
-    # រក្សាទុកភាសាចូល Database តាមរយៈ API ដើម្បីឱ្យមាននិរន្តរភាព
-    try:
-        requests.post(f"{API_BASE_URL}/users", json={"id": str(chat_id), "name": call.from_user.first_name or "N/A", "language": lang}, timeout=5)
+    try: # Save language preference persistently
+        requests.post(f"{config.API_BASE_URL}/users", json={"id": str(chat_id), "name": call.from_user.first_name or "N/A", "language": lang}, timeout=5)
     except Exception as e:
-        print("Error saving language to API:", e)
+        print(f"⚠️ Error saving language for {chat_id}: {e}", file=sys.stderr)
 
     try:
-        bot.delete_message(chat_id, call.message.message_id)     # លុបប៊ូតុង
-    except Exception:
-        pass
-        
+        bot.delete_message(chat_id, call.message.message_id)
+    except Exception: pass
     show_main_menu(chat_id, lang)
 
 def show_main_menu(chat_id, lang="km"):
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
-    
     markup = InlineKeyboardMarkup(row_width=1)
-    # បញ្ជូនជម្រើសភាសា (lang) ទៅកាន់ Mini App
-    btn_mini_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=f"{MINI_APP_URL}?v=new&lang={lang}"))
+    btn_mini_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=f"{config.MINI_APP_URL}?v=new&lang={lang}"))
     btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
     markup.add(btn_mini_app, btn_support)
     
     full_text = f"{texts['welcome']}\n\n{texts['choose']}"
     bot.send_message(chat_id, full_text, reply_markup=markup, parse_mode="Markdown")
 
-# ---------------- ទទួលជម្រើសដឹកជញ្ជូន ---------------- #
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pickup_') or call.data.startswith('delivery_'))
 def handle_delivery_choice(call):
     action, order_id = call.data.split('_', 1)
     chat_id = str(call.message.chat.id)
     
-    if action == "pickup":
-        requests.post(f"{API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0}, timeout=5)
-        try:
-            bot.delete_message(chat_id, call.message.message_id)
-        except Exception:
-            pass
-    elif action == "delivery":
-        requests.put(f"{API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=5)
-        reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        reply_markup.add(KeyboardButton("📍 ផ្ញើទីតាំងរបស់ខ្ញុំ (Send Location)", request_location=True))
-        bot.send_message(chat_id, "📍 *សូមផ្ញើទីតាំងរបស់អ្នក*\n\nសូមចុចប៊ូតុងខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធវ័យឆ្លាតគណនាថ្លៃសេវាដឹកជញ្ជូនដោយស្វ័យប្រវត្តិ៖", reply_markup=reply_markup, parse_mode="Markdown")
-        try:
-            bot.delete_message(chat_id, call.message.message_id)
-        except Exception:
-            pass
+    try:
+        if action == "pickup":
+            requests.post(f"{config.API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0}, timeout=5)
+        elif action == "delivery":
+            requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=5)
+            reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            reply_markup.add(KeyboardButton("📍 Send My Location", request_location=True))
+            bot.send_message(chat_id, "📍 *Please send your location* for our system to calculate the delivery fee.", reply_markup=reply_markup, parse_mode="Markdown")
+        
+        bot.delete_message(chat_id, call.message.message_id)
+    except Exception as e:
+        print(f"⚠️ Delivery choice error for order {order_id}: {e}", file=sys.stderr)
 
-# ---------------- ទទួលព័ត៌មានពីការចុចប៊ូតុងផ្ញើទូរស័ព្ទ និង ទីតាំង ---------------- #
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
-    chat_id = str(message.chat.id)
-    phone = message.contact.phone_number
     try:
-        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "phone": phone}, timeout=5)
-        lang = get_user_lang(chat_id)
-        bot.send_message(chat_id, "✅ លេខទូរស័ព្ទរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Phone number saved!")
+        requests.post(f"{config.API_BASE_URL}/users", json={"id": str(message.chat.id), "name": message.from_user.first_name, "phone": message.contact.phone_number}, timeout=5)
+        bot.send_message(message.chat.id, "✅ Phone number saved!")
     except Exception as e:
-        print("Contact Error:", e)
+        print(f"⚠️ Contact save error for {message.chat.id}: {e}", file=sys.stderr)
 
 @bot.message_handler(content_types=['location'])
 def handle_location(message):
     chat_id = str(message.chat.id)
-    lat = message.location.latitude
-    lon = message.location.longitude
-    loc_str = f"{lat},{lon}"
+    lat, lon = message.location.latitude, message.location.longitude
     try:
-        requests.post(f"{API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": loc_str}, timeout=5)
+        requests.post(f"{config.API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": f"{lat},{lon}"}, timeout=5)
     except Exception as e:
-        print("Location Error:", e)
+        print(f"⚠️ Location save error for {chat_id}: {e}", file=sys.stderr)
         
-    # ដំណើរការទីតាំងសម្រាប់ការកុម្ម៉ង់
     try:
-        res = requests.post(f"{API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=10)
+        res = requests.post(f"{config.API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=10)
         if res.status_code == 200 and "ok" in res.json().get("status", ""):
-            bot.send_message("@XiaoYueXiaoChi", f"📍 *ទីតាំងដឹកជញ្ជូនរបស់អតិថិជន {message.from_user.first_name}* (ID: `{chat_id}`)", parse_mode="Markdown")
-            bot.send_location("@XiaoYueXiaoChi", lat, lon)
-            
-            reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមប្រើប្រាស់ប៊ូតុងខាងក្រោម...")
-            reply_markup.add(KeyboardButton("🔄 /start"))
-            reply_markup.add(KeyboardButton("📱 ផ្ញើលេខទូរស័ព្ទ", request_contact=True), KeyboardButton("📍 ផ្ញើទីតាំង", request_location=True))
-            bot.send_message(chat_id, "✅ ទទួលបានទីតាំងរួចរាល់! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រជូនអ្នក...", reply_markup=reply_markup)
+            bot.send_message(chat_id, "✅ Location received! The system is preparing your bill...")
         else:
-            lang = get_user_lang(chat_id)
-            bot.send_message(chat_id, "✅ ទីតាំងរបស់អ្នកត្រូវបានរក្សាទុក!" if lang == "km" else "✅ Location saved!")
+            bot.send_message(chat_id, "✅ Location saved!")
     except Exception as e:
-        print("Process Location API Error:", e)
+        print(f"⚠️ Process location API error for {chat_id}: {e}", file=sys.stderr)
 
-# ---------------- ទទួលរូបភាព Screenshot ពីអតិថិជន ---------------- #
 @bot.message_handler(content_types=['photo'])
 def handle_payment_screenshot(message):
+    lang = get_user_lang(message.chat.id)
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
     try:
-        chat_id = message.chat.id
-        lang = get_user_lang(chat_id)
-        texts = LANG_DICT.get(lang, LANG_DICT["km"])
+        file_info = bot.get_file(message.photo[-1].file_id)
+        file_url = f"https://api.telegram.org/file/bot{config.BOT_TOKEN}/{file_info.file_path}"
         
-        photo_id = message.photo[-1].file_id # យករូបភាពដែលមានគុណភាពច្បាស់ជាងគេ
-        file_info = bot.get_file(photo_id)
-        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+        response = requests.post(f"{config.API_BASE_URL}/orders/receipt", json={"chat_id": str(message.chat.id), "image_url": file_url}, timeout=20)
         
-        # បញ្ជូន URL រូបភាពទៅកាន់ Backend API
-        response = requests.post(f"{API_BASE_URL}/orders/receipt", json={"chat_id": str(chat_id), "image_url": file_url}, timeout=15)
-        
-        if response.status_code == 200:
-            res_data = response.json()
-            if "error" in res_data:
-                if "verified" in res_data and not res_data["verified"]:
-                    bot.reply_to(message, "⚠️ *ការទូទាត់របស់អ្នកមានបញ្ហា ឬទឹកប្រាក់មិនត្រូវគ្នា!* ❌\n\nសូមទាក់ទងមកកាន់ Admin ផ្ទាល់តាមរយៈប៊ូតុង 🎧 Support (@XiaoYueXiaoChi) ដើម្បីដោះស្រាយភ្លាមៗ។", parse_mode="Markdown")
-                else:
-                    bot.reply_to(message, texts["receipt_fail"])
-            else:
-                bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
+        if response.status_code == 200 and not response.json().get("error"):
+            bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
         else:
-            bot.reply_to(message, "❌ សូមអភ័យទោស ប្រព័ន្ធមិនអាចភ្ជាប់ទៅកាន់ Admin បានទេពេលនេះ។")
-    except Exception:
-        bot.reply_to(message, "❌ មានកំហុសក្នុងការទទួលរូបភាព។")
+            reason = response.json().get("reason", texts["receipt_fail"])
+            bot.reply_to(message, f"⚠️ {reason}")
 
-# បិទមុខងារវាយអក្សរបញ្ចូលក្នុង Bot (Block Text Messaging)
+    except Exception as e:
+        bot.reply_to(message, "❌ An error occurred while processing the image.")
+        print(f"Photo handling error for {message.chat.id}: {e}", file=sys.stderr)
+
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def block_text(message):
-    chat_id = message.chat.id
-    lang = get_user_lang(chat_id)
+    lang = get_user_lang(message.chat.id)
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
-    
     try:
-        bot.delete_message(chat_id, message.message_id) # លុបសារដែលភ្ញៀវវាយចូល
+        bot.delete_message(message.chat.id, message.message_id)
     except Exception:
         pass
-        
-    # លោតប្រាប់ថាប្រព័ន្ធប្រើបានតែប៊ូតុង
-    bot.send_message(chat_id, texts["no_text"])
+    bot.send_message(message.chat.id, texts["no_text"])
 
 if __name__ == '__main__':
-    print("🤖 Telegram Bot is not meant to be run directly.", file=sys.stderr)
-    print("Please run the main.py file with a WSGI server like Uvicorn.", file=sys.stderr)
-    print("Example: uvicorn main:app --host 0.0.0.0 --port 8000")
-    # bot.infinity_polling(timeout=10, long_polling_timeout=5)
-    # print("សូមដំណើរការ bot នេះតាមរយៈ FastAPI Webhook នៅក្នុង main.py វិញ។")
+    print("🤖 This script is not meant to be run directly.", file=sys.stderr)
+    print("Please run the main FastAPI application using: uvicorn main:app", file=sys.stderr)
+    sys.exit(1)
