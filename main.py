@@ -267,8 +267,16 @@ def serve_miniapp():
 @app.get("/api/orders")
 def get_orders():
     if USE_SUPABASE:
-        response = supabase.table("orders").select("*").order("created_at").execute()
-        return response.data
+        try:
+            response = supabase.table("orders").select("*").order("created_at").execute()
+            return response.data
+        except Exception as e:
+            print(f"⚠️ Column created_at missing, falling back to unsorted orders: {e}")
+            try:
+                response = supabase.table("orders").select("*").execute()
+                return response.data
+            except Exception as e2:
+                return []
     return orders_db
 
 @app.post("/api/orders")
@@ -576,7 +584,13 @@ def generate_receipt_image(order_data, amount_paid):
         import io
         from datetime import datetime
         
-        width, height = 450, 650
+        # ទាញយក និងរាប់ចំនួនមុខម្ហូប ដើម្បីគណនាទំហំវិក្កយបត្រ
+        items_list = [item.strip() for item in order_data["items"].split(",") if item.strip()]
+        
+        width = 550 # បង្កើនទទឹងវិក្កយបត្រឱ្យទូលាយជាងមុន
+        base_height = 450 # ទំហំមូលដ្ឋាន (ក្បាល និងបាតវិក្កយបត្រ)
+        height = base_height + (len(items_list) * 35) # Responsive: បូកថែម 35px ក្នុង ១មុខម្ហូប
+        
         img = Image.new('RGB', (width, height), color=(250, 250, 250))
         d = ImageDraw.Draw(img)
         
@@ -606,11 +620,13 @@ def generate_receipt_image(order_data, amount_paid):
         
         d.text((30, y), "รายการ / Items", fill=(0,0,0), font=font_bold)
         y += 35
-        items = order_data["items"].split(",")
-        for item in items:
-            if item.strip():
-                d.text((30, y), item.strip()[:40], fill=(0,0,0), font=font_text)
-                y += 30
+        for item in items_list:
+            # បើឈ្មោះវែងពេក ឱ្យវាបង្ហាញត្រឹម 45 តួអក្សរ ហើយបញ្ចប់ដោយ ...
+            max_chars = 45
+            display_item = item if len(item) <= max_chars else item[:max_chars-3] + "..."
+            d.text((30, y), display_item, fill=(0,0,0), font=font_text)
+            y += 35
+            
         y += 10
         d.line([(20, y), (width-20, y)], fill=(150,150,150), width=1)
         y += 20
@@ -841,8 +857,12 @@ def upload_image(file: UploadFile = File(...)):
 @app.get("/api/users")
 def get_users():
     if USE_SUPABASE:
-        response = supabase.table("users").select("*").execute()
-        return response.data
+        try:
+            response = supabase.table("users").select("*").execute()
+            return response.data
+        except Exception as e:
+            print(f"⚠️ Error fetching users: {e}")
+            return []
     return users_db
 
 @app.post("/api/users")
