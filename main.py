@@ -723,8 +723,16 @@ def upload_receipt(data: OrderReceipt):
 @app.get("/api/menu")
 def get_menu():
     if USE_SUPABASE:
-        response = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
-        return response.data
+        try:
+            response = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
+            return response.data
+        except Exception as e:
+            print(f"⚠️ Column sort_order missing, falling back to id: {e}")
+            try:
+                response = supabase.table("menu").select("*").order("id").execute()
+                return response.data
+            except Exception as e2:
+                return []
     return sorted(menu_db, key=lambda x: (x.get("sort_order", 999), x["id"]))
 
 @app.put("/api/menu/reorder")
@@ -866,12 +874,22 @@ def add_user(user: UserItem):
                 try:
                     response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", ""), "language": user.language or "km"}).execute()
                     return response.data[0] if response.data else None
-                except Exception:
+                except Exception as e1:
+                    print(f"⚠️ Fallback user insert 1: {e1}")
                     try:
                         response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str}).execute()
                         return response.data[0] if response.data else None
                     except Exception as e2:
-                        raise HTTPException(status_code=400, detail=f"Database Error: {str(e2)}")
+                        print(f"⚠️ Fallback user insert 2: {e2}")
+                        try:
+                            response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0}).execute()
+                            return response.data[0] if response.data else None
+                        except Exception as e3:
+                            try:
+                                response = supabase.table("users").insert({"name": user.name, "phone": user.phone, "points": 0}).execute()
+                                return response.data[0] if response.data else None
+                            except Exception as e4:
+                                raise HTTPException(status_code=400, detail=f"Database Error: {str(e4)}")
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
             
