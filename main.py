@@ -59,12 +59,10 @@ async def lifespan(app: FastAPI):
             else:
                  # If it fails again, this is a fatal error for the bot's functionality.
                  error_msg = f"❌ FATAL: Failed to set webhook after retry. Found: {webhook_info.url}"
-                 print(error_msg, file=sys.stderr)
-                 sys.exit("Application cannot start because Telegram webhook initialization failed.")
+                 print(error_msg, file=sys.stderr) # លុប sys.exit ចេញ ដើម្បីទុកឱ្យ Server នៅរស់
 
     except Exception as e:
-        print(f"❌ FATAL: Could not set webhook: {e}", file=sys.stderr)
-        sys.exit("Could not initialize Telegram webhook due to an exception.")
+        print(f"⚠️ Warning: Could not set webhook automatically: {e}", file=sys.stderr)
     
     yield
     
@@ -84,14 +82,18 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ---------------- Supabase Database Connection ---------------- #
-try:
-    supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
-    USE_SUPABASE = True
-    print("✅ Successfully connected to Supabase! Data will be persistent.")
-except Exception as e:
+if config.SUPABASE_URL and config.SUPABASE_KEY:
+    try:
+        supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+        USE_SUPABASE = True
+        print("✅ Successfully connected to Supabase! Data will be persistent.")
+    except Exception as e:
+        USE_SUPABASE = False
+        print(f"❌ Could not connect to Supabase: {e}", file=sys.stderr)
+        print("⚠️ WARNING: Running in-memory mode. All data will be lost on restart.", file=sys.stderr)
+else:
     USE_SUPABASE = False
-    print(f"❌ Could not connect to Supabase: {e}", file=sys.stderr)
-    print("⚠️ WARNING: Running in-memory mode. All data will be lost on restart.", file=sys.stderr)
+    print("⚠️ WARNING: Supabase keys not found. Running in-memory mode. All data will be lost on restart.", file=sys.stderr)
 
 
 # ទិន្នន័យសាកល្បង (Mock Database ក្នុង Memory)

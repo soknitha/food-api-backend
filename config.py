@@ -15,11 +15,7 @@ load_dotenv()
 # 1. Define and Validate Required Environment Variables
 # ----------------------------------------------------
 REQUIRED_VARS = [
-    "BOT_TOKEN",
-    "SUPABASE_URL",
-    "SUPABASE_KEY",
-    "GEMINI_API_KEY",
-    "RAILWAY_PUBLIC_DOMAIN"
+    "BOT_TOKEN"
 ]
 missing_vars = [var for var in REQUIRED_VARS if not os.getenv(var)]
 
@@ -31,10 +27,10 @@ if missing_vars:
 # 2. Fetch Configuration from Environment
 # ---------------------------------------
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "REPLACE_ME.up.railway.app")
 PORT = int(os.getenv("PORT", 8000))
 
 # 3. Define Derived and Static Configuration
@@ -47,7 +43,7 @@ WEBHOOK_URL = f"https://{DOMAIN}/webhook"
 MINI_APP_URL = f"https://{DOMAIN}/miniapp"
 
 # Internal API URL for server-to-server communication
-API_BASE_URL = f"https://{DOMAIN}/api"
+API_BASE_URL = f"http://127.0.0.1:{PORT}/api"
 
 # --- Asset Paths ---
 # Path to the Khmer font for receipt generation
