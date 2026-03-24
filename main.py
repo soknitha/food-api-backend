@@ -200,6 +200,86 @@ class MenuReorderItem(BaseModel):
     id: int
     sort_order: int
 
+# ---------------- វចនានុក្រមភាសាសម្រាប់រាល់សាររបស់ Bot (Bot Localization) ---------------- #
+BOT_LANG_DICT = {
+    "km": {
+        "checkout_initial": "🎉 *ទទួលបានការកុម្ម៉ង់បឋម!*\n\n🧾 លេខវិក្កយបត្រ: `{order_id}`\n\nតើលោកអ្នកចង់មកយកផ្ទាល់ ឬឱ្យហាងដឹកជូន?",
+        "pickup_btn": "🏪 មកយកផ្ទាល់នៅហាង (Pickup)",
+        "delivery_btn": "🛵 ហាងដឹកជូនផ្ទាល់ (Delivery)",
+        "payment_text": "🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n🧾 *លេខវិក្កយបត្រ:* `{order_id}`\n👤 *អតិថិជន:* {customer}\n📱 *គណនី Telegram:* {chat_id}\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n\n🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*\n{formatted_items}\n💰 *សរុបប្រាក់ត្រូវបង់:* {total}\n\n💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA & ACLEDA ខាងក្រោម៖*\n• ឈ្មោះគណនី៖ {aba_name}\n• លេខគណនី៖ `{aba_number}`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។",
+        "payment_success_user": "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!* នេះជាវិក្កយបត្រផ្លូវការ។ សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵",
+        "status_update": "🔔 *ជម្រាបសួរ {customer}*\nការកុម្ម៉ង់លេខ {order_id} របស់អ្នកត្រូវបានប្តូរស្ថានភាពទៅជា៖ *{status}*",
+        "points_earned": "🎁 *អបអរសាទរ!* អ្នកទទួលបាន *{points} ពិន្ទុសន្សំ* ពីការទិញនេះ។\nបច្ចុប្បន្នអ្នកមានពិន្ទុសរុប៖ *{new_points} ពិន្ទុ* 🌟",
+        "promo_50": "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអ្នកសន្សំបាន ៥០ ពិន្ទុហើយ! 🎁\nយើងខ្ញុំសូមជូន *ភេសជ្ជៈ ១ កែវ ឥតគិតថ្លៃ* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*",
+        "promo_100": "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអស្ចារ្យណាស់! អ្នកសន្សំបាន ១០០ ពិន្ទុ! 🎁\nយើងខ្ញុំសូមជូន *ការបញ្ចុះតម្លៃ $5.00* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*",
+        "receipt_shop": "ហាង 小月小吃",
+        "receipt_title": "វិក្កយបត្រ / RECEIPT",
+        "receipt_invoice": "លេខវិក្កយបត្រ:",
+        "receipt_date": "កាលបរិច្ឆេទ:",
+        "receipt_customer": "អតិថិជន:",
+        "receipt_items": "មុខម្ហូប / Items",
+        "receipt_total": "សរុប / Total Due:",
+        "receipt_paid": "បានបង់ / Amount Paid:",
+        "receipt_footer": "*** បង់ប្រាក់រួចរាល់ ***",
+        "receipt_thanks": "សូមអរគុណដែលបានគាំទ្រ!"
+    },
+    "zh": {
+        "checkout_initial": "🎉 *收到初步订单！*\n\n🧾 订单编号: `{order_id}`\n\n您想自取还是让我们送货？",
+        "pickup_btn": "🏪 到店自取 (Pickup)",
+        "delivery_btn": "🛵 商店配送 (Delivery)",
+        "payment_text": "🎉 *下单成功！*\n\n🧾 *订单编号:* `{order_id}`\n👤 *客户:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *电话:* {user_phone}\n📍 *位置:* {user_loc}\n\n🛒 *已点菜品:*\n{formatted_items}\n💰 *总计:* {total}\n\n💳 *请向以下 ABA 或 ACLEDA 账户付款：*\n• 账户名称：{aba_name}\n• 账号：`{aba_number}`\n\n📸 付款后，请在此发送付款截图，以便我们立即为您准备食物。",
+        "payment_success_user": "✅ *您的付款已成功！* 这是正式收据。请稍候，您的食物马上就好... 🛵",
+        "status_update": "🔔 *您好 {customer}*\n您的订单 {order_id} 状态已更新为：*{status}*",
+        "points_earned": "🎁 *恭喜！* 您从此次购买中获得了 *{points} 积分*。\n您当前的总积分为：*{new_points} 分* 🌟",
+        "promo_50": "🎉 *小月小吃的特别礼物！*\n\n您已累积 50 积分！🎁\n下次点餐我们将免费赠送 *1 杯饮料*。\n*(请截图此消息并出示给卖家)*",
+        "promo_100": "🎉 *小月小吃的特别礼物！*\n\n太棒了！您已累积 100 积分！🎁\n下次点餐我们将提供 *$5.00 折扣*。\n*(请截图此消息并出示给卖家)*",
+        "receipt_shop": "小月小吃",
+        "receipt_title": "收据 / RECEIPT",
+        "receipt_invoice": "订单编号:",
+        "receipt_date": "日期:",
+        "receipt_customer": "客户:",
+        "receipt_items": "项目 / Items",
+        "receipt_total": "总计 / Total Due:",
+        "receipt_paid": "已付 / Amount Paid:",
+        "receipt_footer": "*** 已付款 ***",
+        "receipt_thanks": "感谢您的支持！"
+    },
+    "en": {
+        "checkout_initial": "🎉 *Preliminary Order Received!*\n\n🧾 Invoice No: `{order_id}`\n\nWould you like to pick it up or have it delivered?",
+        "pickup_btn": "🏪 Store Pickup",
+        "delivery_btn": "🛵 Store Delivery",
+        "payment_text": "🎉 *Order Placed Successfully!*\n\n🧾 *Invoice No:* `{order_id}`\n👤 *Customer:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *Phone:* {user_phone}\n📍 *Location:* {user_loc}\n\n🛒 *Ordered Items:*\n{formatted_items}\n💰 *Total Due:* {total}\n\n💳 *Please make a payment to the ABA & ACLEDA account below:*\n• Account Name: {aba_name}\n• Account Number: `{aba_number}`\n\n📸 After payment, please send the receipt screenshot here so we can prepare your food immediately.",
+        "payment_success_user": "✅ *Your payment was successful!* Here is your official receipt. Please wait a moment for your food... 🛵",
+        "status_update": "🔔 *Hello {customer}*\nYour order {order_id} status has been updated to: *{status}*",
+        "points_earned": "🎁 *Congratulations!* You earned *{points} points* from this purchase.\nYour current total points: *{new_points} points* 🌟",
+        "promo_50": "🎉 *Special Gift from Xiao Yue Xiao Chi!*\n\nYou've collected 50 points! 🎁\nWe offer *1 free drink* for your next order.\n*(Please screenshot this message and show it to the seller)*",
+        "promo_100": "🎉 *Special Gift from Xiao Yue Xiao Chi!*\n\nAwesome! You've collected 100 points! 🎁\nWe offer a *$5.00 discount* for your next order.\n*(Please screenshot this message and show it to the seller)*",
+        "receipt_shop": "Xiao Yue Xiao Chi",
+        "receipt_title": "RECEIPT",
+        "receipt_invoice": "Invoice No:",
+        "receipt_date": "Date:",
+        "receipt_customer": "Customer:",
+        "receipt_items": "Items",
+        "receipt_total": "Total Due:",
+        "receipt_paid": "Amount Paid:",
+        "receipt_footer": "*** PAID ***",
+        "receipt_thanks": "Thank you for your support!"
+    }
+}
+
+def get_user_lang_from_db(chat_id):
+    """ ទាញយកភាសាដែលអតិថិជនបានជ្រើសរើសពីមូលដ្ឋានទិន្នន័យ """
+    if USE_SUPABASE:
+        try:
+            res = supabase.table("users").select("language").eq("chat_id", str(chat_id)).execute()
+            if res.data and res.data[0].get("language"):
+                return res.data[0]["language"]
+        except Exception: pass
+    for u in users_db:
+        if str(u.get("chat_id")) == str(chat_id):
+            return u.get("language", "km")
+    return "km"
+
 @app.get("/")
 def read_root():
     return {"message": "🎉 Server ដំណើរការយ៉ាងរលូន! នេះគឺជា Food E-Commerce API."}
@@ -324,13 +404,15 @@ def miniapp_checkout(order: OrderCreate, background_tasks: BackgroundTasks):
                         u["points"] -= order.redeem_points
 
     if order.chat_id:
+        lang = get_user_lang_from_db(order.chat_id)
+        texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
         markup = {
             "inline_keyboard": [
-                [{"text": "🏪 មកយកផ្ទាល់នៅហាង (Pickup)", "callback_data": f"pickup_{new_order['id']}"}],
-                [{"text": "🛵 ហាងដឹកជូនផ្ទាល់ (Delivery)", "callback_data": f"delivery_{new_order['id']}"}]
+                [{"text": texts["pickup_btn"], "callback_data": f"pickup_{new_order['id']}"}],
+                [{"text": texts["delivery_btn"], "callback_data": f"delivery_{new_order['id']}"}]
             ]
         }
-        msg_text = f"🎉 *ទទួលបានការកុម្ម៉ង់បឋម!*\n\n🧾 លេខវិក្កយបត្រ: `{new_order['id']}`\n\nតើលោកអ្នកចង់មកយកផ្ទាល់ ឬឱ្យហាងដឹកជូន?"
+        msg_text = texts["checkout_initial"].format(order_id=new_order['id'])
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={
             "chat_id": order.chat_id,
             "text": msg_text,
@@ -401,20 +483,21 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
         if itm.strip():
             formatted_items += f"{idx + 1}. {itm.strip()}\n"
 
-    payment_text = (
-        f"🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n"
-        f"🧾 *លេខវិក្កយបត្រ:* `{order['id']}`\n"
-        f"👤 *អតិថិជន:* {order['customer']}\n"
-        f"📱 *គណនី Telegram:* {chat_id}\n"
-        f"📞 *លេខទូរស័ព្ទ:* {user_phone}\n"
-        f"📍 *Location:* {user_loc}\n\n"
-        f"🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*\n"
-        f"{formatted_items}\n"
-        f"💰 *សរុបប្រាក់ត្រូវបង់:* {order['total']}\n\n"
-        f"💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA & ACLEDA ខាងក្រោម៖*\n"
-        f"• ឈ្មោះគណនី៖ HEM SINATH\n"
-        f"• លេខគណនី៖ 086599789\n\n"
-        f"📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។"
+    lang = get_user_lang_from_db(chat_id)
+    texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
+    aba_name = app_config_db.get("aba_name", "HEM SINATH")
+    aba_number = app_config_db.get("aba_number", "086599789")
+    
+    payment_text = texts["payment_text"].format(
+        order_id=order['id'],
+        customer=order['customer'],
+        chat_id=chat_id,
+        user_phone=user_phone,
+        user_loc=user_loc,
+        formatted_items=formatted_items,
+        total=order['total'],
+        aba_name=aba_name,
+        aba_number=aba_number
     )
     
     qr_path = os.path.join(os.path.dirname(__file__), "aba_qr.jpg")
@@ -498,7 +581,9 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
     if order:
         # បាញ់សារទៅប្រាប់អតិថិជនតាម Telegram ពេល Admin ប្តូរស្ថានភាព
         if order.get("chat_id"):
-            msg_text = f"🔔 *ជម្រាបសួរ {order['customer']}*\nការកុម្ម៉ង់លេខ {order['id']} របស់អ្នកត្រូវបានប្តូរស្ថានភាពទៅជា៖ *{status_update.status}*"
+            lang = get_user_lang_from_db(order["chat_id"])
+            texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
+            msg_text = texts["status_update"].format(customer=order['customer'], order_id=order['id'], status=status_update.status)
             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": msg_text, "parse_mode": "Markdown"})
             
         # ---------------- មុខងារ Loyalty Points ---------------- #
@@ -538,16 +623,16 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
                             user_id_counter += 1
 
                     if order.get("chat_id"):
-                        pts_msg = f"🎁 *អបអរសាទរ!* អ្នកទទួលបាន *{points_earned} ពិន្ទុសន្សំ* ពីការទិញនេះ។\nបច្ចុប្បន្នអ្នកមានពិន្ទុសរុប៖ *{new_points} ពិន្ទុ* 🌟"
+                        pts_msg = texts["points_earned"].format(points=points_earned, new_points=new_points)
                         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": pts_msg, "parse_mode": "Markdown"})
                         
                         # ---- ផ្ញើសារ Promotion ដោយស្វ័យប្រវត្តិ ---- #
                         old_points = new_points - points_earned
                         if new_points >= 50 and old_points < 50:
-                            promo_msg = "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអ្នកសន្សំបាន ៥០ ពិន្ទុហើយ! 🎁\nយើងខ្ញុំសូមជូន *ភេសជ្ជៈ ១ កែវ ឥតគិតថ្លៃ* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
+                            promo_msg = texts["promo_50"]
                             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
                         elif new_points >= 100 and old_points < 100:
-                            promo_msg = "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអស្ចារ្យណាស់! អ្នកសន្សំបាន ១០០ ពិន្ទុ! 🎁\nយើងខ្ញុំសូមជូន *ការបញ្ចុះតម្លៃ $5.00* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*"
+                            promo_msg = texts["promo_100"]
                             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
             except Exception as e:
                 print("Error adding points:", e)
@@ -556,70 +641,96 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
         return {"message": "Status updated successfully", "order": order}
     return {"error": "Order not found"}
 
-def generate_receipt_image(order_data, amount_paid):
-    """ Generates a PNG receipt image with proper Khmer font support. """
+def generate_receipt_image(order_data, amount_paid, lang="km"):
+    """ Generates a highly professional POS-style PNG receipt image based on user's language. """
     try:
         from PIL import Image, ImageDraw, ImageFont
         import io
         from datetime import datetime
         
-        # ទាញយក និងរាប់ចំនួនមុខម្ហូប ដើម្បីគណនាទំហំវិក្កយបត្រ
+        texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
         items_list = [item.strip() for item in order_data["items"].split(",") if item.strip()]
         
-        width = 550 # បង្កើនទទឹងវិក្កយបត្រឱ្យទូលាយជាងមុន
-        base_height = 450 # ទំហំមូលដ្ឋាន (ក្បាល និងបាតវិក្កយបត្រ)
-        height = base_height + (len(items_list) * 35) # Responsive: បូកថែម 35px ក្នុង ១មុខម្ហូប
+        width = 420
+        base_height = 480
+        height = base_height + (len(items_list) * 30)
         
-        img = Image.new('RGB', (width, height), color=(250, 250, 250))
+        img = Image.new('RGB', (width, height), color=(255, 255, 255))
         d = ImageDraw.Draw(img)
         
-        # Load the beautiful Khmer font
         try:
             if not os.path.exists(config.KHMER_FONT_PATH):
                 raise FileNotFoundError(f"Font file not found at {config.KHMER_FONT_PATH}")
-            font_title = ImageFont.truetype(config.KHMER_FONT_PATH, 28)
-            font_text = ImageFont.truetype(config.KHMER_FONT_PATH, 20)
-            font_bold = ImageFont.truetype(config.KHMER_FONT_PATH, 22)
+            font_title = ImageFont.truetype(config.KHMER_FONT_PATH, 26)
+            font_bold = ImageFont.truetype(config.KHMER_FONT_PATH, 20)
+            font_text = ImageFont.truetype(config.KHMER_FONT_PATH, 18)
         except Exception as e:
             print(f"⚠️  Font Error: {e}. Falling back to default font.", file=sys.stderr)
             font_title = font_text = font_bold = ImageFont.load_default()
 
-        # --- Drawing content ---
-        y = 30
-        d.text((width/2, y), "វិក្កយបត្រ / Receipt", fill=(0,0,0), font=font_title, anchor="mt")
-        y += 50
-        d.line([(20, y), (width-20, y)], fill=(50,50,50), width=1)
+        def draw_centered(y_pos, text_val, f_type, fill=(0,0,0)):
+            try:
+                bbox = d.textbbox((0, 0), text_val, font=f_type)
+                w = bbox[2] - bbox[0]
+            except AttributeError:
+                w = d.textlength(text_val, font=f_type)
+            d.text(((width - w) / 2, y_pos), text_val, fill=fill, font=f_type)
+
+        def draw_dashed(y_pos):
+            d.text((20, y_pos), "-" * 55, fill=(100,100,100), font=font_text)
+
+        # --- Header ---
+        y = 25
+        draw_centered(y, texts["receipt_shop"], font_title)
+        y += 45
+        draw_centered(y, texts["receipt_title"], font_bold)
+        y += 35
+        draw_dashed(y)
         y += 20
 
-        d.text((30, y), f"លេខវិក្កយបត្រ: {order_data['id']}", fill=(0,0,0), font=font_text)
-        d.text((width-30, y), f"{datetime.now().strftime('%d/%m/%Y')}", fill=(0,0,0), font=font_text, anchor="ra")
+        # --- Info ---
+        d.text((20, y), f"{texts['receipt_invoice']} {order_data['id']}", fill=(0,0,0), font=font_text)
         y += 30
-        d.text((30, y), f"អតិថិជន: {order_data['customer']}", fill=(0,0,0), font=font_text)
-        y += 40
-        
-        d.text((30, y), "รายการ / Items", fill=(0,0,0), font=font_bold)
-        y += 35
-        for item in items_list:
-            # បើឈ្មោះវែងពេក ឱ្យវាបង្ហាញត្រឹម 45 តួអក្សរ ហើយបញ្ចប់ដោយ ...
-            max_chars = 45
-            display_item = item if len(item) <= max_chars else item[:max_chars-3] + "..."
-            d.text((30, y), display_item, fill=(0,0,0), font=font_text)
-            y += 35
-            
-        y += 10
-        d.line([(20, y), (width-20, y)], fill=(150,150,150), width=1)
+        d.text((20, y), f"{texts['receipt_date']} {datetime.now().strftime('%d/%m/%Y %H:%M')}", fill=(0,0,0), font=font_text)
+        y += 30
+        d.text((20, y), f"{texts['receipt_customer']} {order_data['customer']}", fill=(0,0,0), font=font_text)
+        y += 30
+        draw_dashed(y)
         y += 20
         
-        d.text((30, y), "សរុប / Total Due:", fill=(0,0,0), font=font_bold)
-        d.text((width-30, y), f"{order_data['total']}", fill=(0,0,0), font=font_bold, anchor="ra")
-        y += 35
-        d.text((30, y), "បានបង់ / Amount Paid:", fill=(0,0,0), font=font_bold)
-        d.text((width-30, y), f"${float(amount_paid):.2f}", fill=(39, 174, 96), font=font_bold, anchor="ra")
-        y += 60
+        # --- Items ---
+        d.text((20, y), texts["receipt_items"], fill=(0,0,0), font=font_bold)
+        y += 30
+        for item in items_list:
+            max_chars = 35
+            display_item = item if len(item) <= max_chars else item[:max_chars-3] + "..."
+            d.text((20, y), display_item, fill=(0,0,0), font=font_text)
+            y += 30
+            
+        draw_dashed(y)
+        y += 20
         
-        d.text((width/2, y), "*** បង់ប្រាក់រួចរាល់ ***", fill=(39, 174, 96), font=font_title, anchor="mt")
-        y += 40
-        d.text((width/2, y), "សូមអរគុណ!", fill=(0,0,0), font=font_text, anchor="mt")
+        # --- Totals ---
+        d.text((20, y), texts["receipt_total"], fill=(0,0,0), font=font_bold)
+        tot_val = str(order_data['total'])
+        try: w = d.textbbox((0, 0), tot_val, font=font_bold)[2]
+        except AttributeError: w = d.textlength(tot_val, font=font_bold)
+        d.text((width - 20 - w, y), tot_val, fill=(0,0,0), font=font_bold)
+        y += 35
+
+        d.text((20, y), texts["receipt_paid"], fill=(0,0,0), font=font_bold)
+        paid_val = f"${float(amount_paid):.2f}"
+        try: w = d.textbbox((0, 0), paid_val, font=font_bold)[2]
+        except AttributeError: w = d.textlength(paid_val, font=font_bold)
+        d.text((width - 20 - w, y), paid_val, fill=(39, 174, 96), font=font_bold)
+        y += 45
+        
+        draw_dashed(y)
+        y += 20
+        
+        draw_centered(y, texts["receipt_footer"], font_bold, fill=(39, 174, 96))
+        y += 35
+        draw_centered(y, texts["receipt_thanks"], font_text)
         
         bio = io.BytesIO()
         img.save(bio, format="PNG")
@@ -653,6 +764,9 @@ def upload_receipt(data: OrderReceipt):
     except Exception:
         expected_total = 0.0
 
+    user_lang = get_user_lang_from_db(data.chat_id)
+    lang_texts = BOT_LANG_DICT.get(user_lang, BOT_LANG_DICT["km"])
+
     # ---------------- មុខងារ AI Verification ---------------- #
     # ទាញយក GEMINI API KEY ពី telegram_bot ដោយផ្ទាល់ ដើម្បីធានាថាវាមិនទទេស្អាត
     import telegram_bot
@@ -674,6 +788,7 @@ def upload_receipt(data: OrderReceipt):
             If the extracted amount is EXACTLY EQUAL OR GREATER than {expected_total}, set is_match to true, otherwise false.
             Return ONLY a valid JSON object in this format (no markdown):
             {{"extracted_amount": 15.50, "is_match": true, "trx_id": "123456789", "account_name": "HEM SINATH", "reason": "Amount verified."}}
+            IMPORTANT: The 'reason' MUST be accurately translated to the language code '{user_lang}' (km=Khmer, zh=Chinese, en=English).
             """
             
             response = client.models.generate_content(
@@ -699,15 +814,15 @@ def upload_receipt(data: OrderReceipt):
         else:
             pending_order.update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"})
         
-        receipt_png = generate_receipt_image(pending_order, extracted_amount)
+        receipt_png = generate_receipt_image(pending_order, extracted_amount, lang=user_lang)
         admin_msg = f"✅ *អតិថិជនបានទូទាត់ប្រាក់ជោគជ័យ!*\n🧾 វិក្កយបត្រ: `{pending_order['id']}`\n💰 បានទូទាត់: `${extracted_amount}`\n🏦 គណនី: {acc_name}\n🆔 Trx ID: `{trx_id}`"
         if receipt_png:
             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": "@XiaoYueXiaoChi", "caption": admin_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
-            user_msg = "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!* នេះជាវិក្កយបត្រផ្លូវការ។ សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵"
+            user_msg = lang_texts["payment_success_user"]
             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": data.chat_id, "caption": user_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
         else:
             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": data.chat_id, "text": "✅ *ការទូទាត់ជោគជ័យ!* សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵", "parse_mode": "Markdown"})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": data.chat_id, "text": lang_texts["payment_success_user"], "parse_mode": "Markdown"})
             
         return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True}
     else:
