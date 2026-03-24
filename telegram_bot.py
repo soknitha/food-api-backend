@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 # Initialize Bot and AI Client from Central Config
 # ----------------
 try:
-    bot = telebot.TeleBot(config.BOT_TOKEN)
+    bot = telebot.TeleBot(config.BOT_TOKEN, threaded=False) # MUST be False for Webhooks in FastAPI
     # The Gemini client is now initialized in main.py, but we can also initialize it here if needed for direct use.
     # For now, the AI verification part in main.py handles it.
 except Exception as e:

@@ -19,6 +19,20 @@ import config
 # បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
 warnings.filterwarnings("ignore")
 
+def download_khmer_font():
+    """ ទាញយក Font ខ្មែរដោយស្វ័យប្រវត្តិដើម្បីឱ្យវិក្កយបត្រចេញអក្សរខ្មែរបាន ១០០% """
+    os.makedirs(os.path.dirname(config.KHMER_FONT_PATH), exist_ok=True)
+    if not os.path.exists(config.KHMER_FONT_PATH):
+        print("📥 កំពុងទាញយក Font ខ្មែរ (Hanuman) សម្រាប់វិក្កយបត្រ...")
+        try:
+            url = "https://github.com/google/fonts/raw/main/ofl/hanuman/Hanuman-Regular.ttf"
+            res = requests.get(url, timeout=10)
+            with open(config.KHMER_FONT_PATH, "wb") as f:
+                f.write(res.content)
+            print("✅ ទាញយក Font ខ្មែរបានជោគជ័យ!")
+        except Exception as e:
+            print(f"⚠️ មិនអាចទាញយក Font ខ្មែរបានទេ: {e}")
+
 # ---------------- Lifespan Manager for Telegram Bot Webhook ---------------- #
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +41,7 @@ async def lifespan(app: FastAPI):
     Ensures the webhook is correctly pointed to the public domain from config.
     """
     try:
+        download_khmer_font()
         print(f"ℹ️  Attempting to set webhook to: {config.WEBHOOK_URL}")
         bot.remove_webhook()
         bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True)
@@ -194,7 +209,7 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
         json_str = await request.body()
         update = telebot.types.Update.de_json(json_str.decode('utf-8'))
         
-        # Process the update in the background to avoid blocking
+        # ដំណើរការនៅក្នុង Background Task ដោយរលូន និងគ្មានការកកស្ទះ
         background_tasks.add_task(bot.process_new_updates, [update])
         
         return Response(status_code=200)

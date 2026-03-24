@@ -47,7 +47,7 @@ WEBHOOK_URL = f"https://{DOMAIN}/webhook"
 MINI_APP_URL = f"https://{DOMAIN}/miniapp"
 
 # Internal API URL for server-to-server communication
-API_BASE_URL = f"http://127.0.0.1:{PORT}/api"
+API_BASE_URL = f"https://{DOMAIN}/api"
 
 # --- Asset Paths ---
 # Path to the Khmer font for receipt generation
