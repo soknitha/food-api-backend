@@ -15,7 +15,9 @@ load_dotenv()
 # 1. Define and Validate Required Environment Variables
 # ----------------------------------------------------
 REQUIRED_VARS = [
-    "BOT_TOKEN"
+    "BOT_TOKEN",
+    "SUPABASE_URL",
+    "SUPABASE_KEY"
 ]
 missing_vars = [var for var in REQUIRED_VARS if not os.getenv(var)]
 
@@ -42,11 +44,12 @@ APP_NAME = "Food E-Commerce Admin System"
 WEBHOOK_URL = f"https://{DOMAIN}/webhook"
 MINI_APP_URL = f"https://{DOMAIN}/miniapp"
 
-# Internal API URL for server-to-server communication
-API_BASE_URL = f"http://127.0.0.1:{PORT}/api"
+# Internal API URL 
+# ប្រើ Localhost ជាលំនាំដើម, ប៉ុន្តែអ្នកអាចភ្ជាប់វាទៅ Live Server បានតាមរយៈការថែម API_BASE_URL ក្នុងឯកសារ .env
+API_BASE_URL = os.getenv("API_BASE_URL", f"http://127.0.0.1:{PORT}/api")
 
 # --- Asset Paths ---
 # Path to the Khmer font for receipt generation
-KHMER_FONT_PATH = os.path.join(os.path.dirname(__file__), "assets", "Hanuman-Regular.ttf")
+KHMER_FONT_PATH = os.path.join(os.path.dirname(__file__), "assets", "NotoSansKhmer-Regular.ttf")
 
 print("✅ Configuration loaded and validated successfully.")

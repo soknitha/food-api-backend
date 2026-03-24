@@ -1,5 +1,5 @@
 import warnings
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks, Response
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -24,9 +24,9 @@ def download_khmer_font():
     """ ទាញយក Font ខ្មែរដោយស្វ័យប្រវត្តិដើម្បីឱ្យវិក្កយបត្រចេញអក្សរខ្មែរបាន ១០០% """
     os.makedirs(os.path.dirname(config.KHMER_FONT_PATH), exist_ok=True)
     if not os.path.exists(config.KHMER_FONT_PATH):
-        print("📥 កំពុងទាញយក Font ខ្មែរ (Hanuman) សម្រាប់វិក្កយបត្រ...")
+        print("📥 កំពុងទាញយក Font ខ្មែរ Noto Sans Khmer ដ៏ស្រស់ស្អាត សម្រាប់វិក្កយបត្រ...")
         try:
-            url = "https://github.com/google/fonts/raw/main/ofl/hanuman/Hanuman-Regular.ttf"
+            url = "https://github.com/google/fonts/raw/main/ofl/notosanskhmer/NotoSansKhmer-Regular.ttf"
             res = requests.get(url, timeout=10)
             with open(config.KHMER_FONT_PATH, "wb") as f:
                 f.write(res.content)
@@ -78,24 +78,43 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
 
+# ---------------- Real-time WebSockets Manager (ល្បឿនផ្លេកបន្ទោរ) ---------------- #
+class WSConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
+
+ws_manager = WSConnectionManager()
+
+async def broadcast_ws_event(event_type: str, data: dict):
+    await ws_manager.broadcast({"type": event_type, "data": data})
+
 # ---------------- កំណត់ទីតាំងរក្សាទុករូបភាព (Static Files) ---------------- #
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ---------------- Supabase Database Connection ---------------- #
-if config.SUPABASE_URL and config.SUPABASE_KEY:
-    try:
-        supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
-        USE_SUPABASE = True
-        print("✅ Successfully connected to Supabase! Data will be persistent.")
-    except Exception as e:
-        USE_SUPABASE = False
-        print(f"❌ Could not connect to Supabase: {e}", file=sys.stderr)
-        print("⚠️ WARNING: Running in-memory mode. All data will be lost on restart.", file=sys.stderr)
-else:
-    USE_SUPABASE = False
-    print("⚠️ WARNING: Supabase keys not found. Running in-memory mode. All data will be lost on restart.", file=sys.stderr)
+try:
+    supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+    USE_SUPABASE = True
+    print("✅ Successfully connected to Supabase! ធានាសុវត្ថិភាពទិន្នន័យ ១០០% មិនបាត់បង់។")
+except Exception as e:
+    print(f"❌ FATAL ERROR: មិនអាចភ្ជាប់ទៅកាន់មូលដ្ឋានទិន្នន័យបានទេ: {e}", file=sys.stderr)
+    sys.exit("ប្រព័ន្ធទាមទារឱ្យមាន Database (Supabase) ដើម្បីដំណើរការ និងការពារការបាត់បង់ទិន្នន័យ។")
 
 
 # ទិន្នន័យសាកល្បង (Mock Database ក្នុង Memory)
@@ -187,6 +206,10 @@ class AppConfig(BaseModel):
     reward_points: int = 50
     reward_discount: float = 5.0
 
+class MenuReorderItem(BaseModel):
+    id: int
+    sort_order: int
+
 @app.get("/")
 def read_root():
     return {"message": "🎉 Server ដំណើរការយ៉ាងរលូន! នេះគឺជា Food E-Commerce API."}
@@ -205,6 +228,15 @@ def init_system(request: Request):
         return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធត្រូវបានជួសជុលជោគជ័យ!</h2><p>Webhook ថ្មីគឺ: <b>{real_webhook_url}</b></p><h3 style='color:green;'>សូមចូលទៅ Telegram រួចចុច /start ឥឡូវនេះ</h3></div>"
     except Exception as e:
         return f"<div style='text-align:center; color:red;'><h2>❌ មានកំហុស: {e}</h2></div>"
+
+@app.websocket("/ws/live")
+async def websocket_endpoint(websocket: WebSocket):
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
 
 @app.post("/webhook")
 async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
@@ -240,7 +272,7 @@ def get_orders():
     return orders_db
 
 @app.post("/api/orders")
-def create_order(order: OrderCreate):
+def create_order(order: OrderCreate, background_tasks: BackgroundTasks):
     import random
     
     items_text = order.items
@@ -268,11 +300,12 @@ def create_order(order: OrderCreate):
         kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}"
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
         
+    background_tasks.add_task(broadcast_ws_event, "NEW_ORDER", new_order)
     return new_order
 
 # ---------------- Action-Triggered Notification (ពី Mini App) ---------------- #
 @app.post("/api/miniapp/checkout")
-def miniapp_checkout(order: OrderCreate):
+def miniapp_checkout(order: OrderCreate, background_tasks: BackgroundTasks):
     import random
     new_order = {
         "id": f"#{random.randint(1000, 9999)}",
@@ -318,6 +351,7 @@ def miniapp_checkout(order: OrderCreate):
             "reply_markup": markup
         })
         
+    background_tasks.add_task(broadcast_ws_event, "NEW_ORDER", new_order)
     return {"message": "Order placed and receipt sent", "order": new_order}
 
 def finalize_order_internal(order_id, chat_id, fee, distance=0):
@@ -461,7 +495,7 @@ def process_location_api(data: ProcessLocationReq):
     return {"error": "no order found"}
 
 @app.put("/api/orders/status")
-def update_order_status(status_update: OrderStatusUpdate):
+def update_order_status(status_update: OrderStatusUpdate, background_tasks: BackgroundTasks):
     order = None
     if USE_SUPABASE:
         response = supabase.table("orders").update({"status": status_update.status}).eq("id", status_update.order_id).execute()
@@ -529,6 +563,7 @@ def update_order_status(status_update: OrderStatusUpdate):
                             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
             except Exception as e:
                 print("Error adding points:", e)
+        background_tasks.add_task(broadcast_ws_event, "UPDATE_ORDER", order)
                 
         return {"message": "Status updated successfully", "order": order}
     return {"error": "Order not found"}
@@ -687,15 +722,33 @@ def upload_receipt(data: OrderReceipt):
 @app.get("/api/menu")
 def get_menu():
     if USE_SUPABASE:
-        response = supabase.table("menu").select("*").order("id").execute()
+        response = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
         return response.data
-    return menu_db
+    return sorted(menu_db, key=lambda x: (x.get("sort_order", 999), x["id"]))
+
+@app.put("/api/menu/reorder")
+def reorder_menu(items: list[MenuReorderItem], background_tasks: BackgroundTasks):
+    if USE_SUPABASE:
+        for item in items:
+            try:
+                supabase.table("menu").update({"sort_order": item.sort_order}).eq("id", item.id).execute()
+            except Exception: pass
+        background_tasks.add_task(broadcast_ws_event, "REORDER_MENU", [i.model_dump() for i in items])
+        return {"status": "ok"}
+    global menu_db
+    for item in items:
+        for m in menu_db:
+            if m["id"] == item.id:
+                m["sort_order"] = item.sort_order
+    background_tasks.add_task(broadcast_ws_event, "REORDER_MENU", [i.model_dump() for i in items])
+    return {"status": "ok"}
 
 @app.post("/api/menu")
-def add_menu(item: MenuItem):
+def add_menu(item: MenuItem, background_tasks: BackgroundTasks):
     if USE_SUPABASE:
         try:
             response = supabase.table("menu").insert({"name": item.name, "price": item.price, "image_url": item.image_url}).execute()
+            background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", item.model_dump())
             return response.data[0] if response.data else {"id": 0, "name": item.name, "price": item.price, "image_url": item.image_url}
         except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
@@ -706,10 +759,11 @@ def add_menu(item: MenuItem):
     return new_item
 
 @app.put("/api/menu/{item_id}")
-def update_menu(item_id: int, item: MenuItem):
+def update_menu(item_id: int, item: MenuItem, background_tasks: BackgroundTasks):
     if USE_SUPABASE:
         try:
             response = supabase.table("menu").update({"name": item.name, "price": item.price, "image_url": item.image_url}).eq("id", item_id).execute()
+            background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", item.model_dump())
             return response.data[0] if response.data else {"id": item_id, "name": item.name, "price": item.price, "image_url": item.image_url}
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
@@ -723,12 +777,14 @@ def update_menu(item_id: int, item: MenuItem):
     return {"error": "Item not found"}
 
 @app.delete("/api/menu/{item_id}")
-def delete_menu(item_id: int):
+def delete_menu(item_id: int, background_tasks: BackgroundTasks):
     if USE_SUPABASE:
         supabase.table("menu").delete().eq("id", item_id).execute()
+        background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", {"id": item_id, "deleted": True})
         return {"message": "Item deleted successfully"}
     global menu_db
     menu_db = [item for item in menu_db if item["id"] != item_id]
+    background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", {"id": item_id, "deleted": True})
     return {"message": "Item deleted successfully"}
 
 # ---------------- Upload រូបភាពមុខម្ហូប (JPG/PNG) ---------------- #
@@ -880,17 +936,19 @@ def update_config(config: AppConfig):
 
 # ---------------- Live Chat CRM & Broadcast ---------------- #
 @app.post("/api/crm/messages")
-def add_crm_message(msg: ChatMessage):
+def add_crm_message(msg: ChatMessage, background_tasks: BackgroundTasks):
     from datetime import datetime
     record = msg.model_dump()
     record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     if USE_SUPABASE:
         try:
             supabase.table("crm_messages").insert(record).execute()
+            background_tasks.add_task(broadcast_ws_event, "NEW_CRM_MSG", record)
         except Exception as e:
             print("Error saving CRM message:", e)
     else:
         crm_messages_db.append(record)
+        background_tasks.add_task(broadcast_ws_event, "NEW_CRM_MSG", record)
     return {"status": "ok"}
 
 @app.get("/api/crm/messages")
@@ -906,7 +964,7 @@ def get_crm_messages():
     return crm_messages_db[-100:]
 
 @app.post("/api/crm/reply")
-def reply_crm_message(msg: ChatMessage):
+def reply_crm_message(msg: ChatMessage, background_tasks: BackgroundTasks):
     import time
     from datetime import datetime
     # ផ្ញើទៅកាន់ Telegram របស់អ្នកប្រើប្រាស់
@@ -921,10 +979,12 @@ def reply_crm_message(msg: ChatMessage):
     if USE_SUPABASE:
         try:
             supabase.table("crm_messages").insert(record).execute()
+            background_tasks.add_task(broadcast_ws_event, "NEW_CRM_MSG", record)
         except Exception as e:
             print("Error saving CRM reply:", e)
     else:
         crm_messages_db.append(record)
+        background_tasks.add_task(broadcast_ws_event, "NEW_CRM_MSG", record)
     return {"status": "ok"}
 
 @app.get("/api/crm/ai_status/{chat_id}")
