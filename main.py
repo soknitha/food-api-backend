@@ -903,9 +903,12 @@ def delete_user(user_id: str):
 @app.get("/api/users/{user_id}")
 def get_user(user_id: str):
     if USE_SUPABASE:
-        res = supabase.table("users").select("*").eq("id", user_id).execute()
-        if res.data:
-            return res.data[0]
+        try:
+            res = supabase.table("users").select("*").eq("id", user_id).execute()
+            if res.data:
+                return res.data[0]
+        except Exception:
+            pass
     else:
         for u in users_db:
             if str(u.get("id")) == user_id or str(u.get("chat_id")) == user_id:
@@ -916,9 +919,12 @@ def get_user(user_id: str):
 @app.get("/api/users/{chat_id}/points")
 def get_user_points(chat_id: str):
     if USE_SUPABASE:
-        res = supabase.table("users").select("points").eq("chat_id", chat_id).execute()
-        if res.data:
-            return {"points": res.data[0]["points"]}
+        try:
+            res = supabase.table("users").select("points").eq("chat_id", chat_id).execute()
+            if res.data:
+                return {"points": res.data[0]["points"]}
+        except Exception:
+            pass
     else:
         for u in users_db:
             if u.get("chat_id") == chat_id:
