@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import os
 import sys
 import requests
+import asyncio
 from supabase import create_client, Client
 import telebot
 from telegram_bot import bot
@@ -40,29 +41,30 @@ async def lifespan(app: FastAPI):
     Manages the Telegram webhook setup and removal during the application's lifespan.
     Ensures the webhook is correctly pointed to the public domain from config.
     """
-    try:
-        download_khmer_font()
-        print(f"ℹ️  Attempting to set webhook to: {config.WEBHOOK_URL}")
-        bot.remove_webhook()
-        bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True)
-        
-        # Verify webhook is set correctly
-        webhook_info = bot.get_webhook_info()
-        if webhook_info.url == config.WEBHOOK_URL:
-            print(f"✅ Webhook successfully set to: {config.WEBHOOK_URL}")
-        else:
-            print(f"⚠️ Webhook mismatch. Expected {config.WEBHOOK_URL}, but found {webhook_info.url}. Retrying...", file=sys.stderr)
-            bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True) # Retry setting
+    def startup_tasks():
+        try:
+            download_khmer_font()
+            print(f"ℹ️  Attempting to set webhook to: {config.WEBHOOK_URL}")
+            bot.remove_webhook()
+            bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True)
+            
+            # Verify webhook is set correctly
             webhook_info = bot.get_webhook_info()
             if webhook_info.url == config.WEBHOOK_URL:
-                 print(f"✅ Webhook successfully reset to: {config.WEBHOOK_URL}")
+                print(f"✅ Webhook successfully set to: {config.WEBHOOK_URL}")
             else:
-                 # If it fails again, this is a fatal error for the bot's functionality.
-                 error_msg = f"❌ FATAL: Failed to set webhook after retry. Found: {webhook_info.url}"
-                 print(error_msg, file=sys.stderr) # លុប sys.exit ចេញ ដើម្បីទុកឱ្យ Server នៅរស់
-
-    except Exception as e:
-        print(f"⚠️ Warning: Could not set webhook automatically: {e}", file=sys.stderr)
+                print(f"⚠️ Webhook mismatch. Expected {config.WEBHOOK_URL}, but found {webhook_info.url}. Retrying...", file=sys.stderr)
+                bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True)
+                if bot.get_webhook_info().url == config.WEBHOOK_URL:
+                     print(f"✅ Webhook successfully reset to: {config.WEBHOOK_URL}")
+                else:
+                     print(f"❌ FATAL: Failed to set webhook. Found: {bot.get_webhook_info().url}", file=sys.stderr)
+        except Exception as e:
+            print(f"⚠️ Warning: Could not setup startup tasks: {e}", file=sys.stderr)
+            
+    # ប្រើប្រាស់ Background Thread ដើម្បីបើកផ្លូវឱ្យ Server (Uvicorn) ដំណើរការបានភ្លាមៗ ជៀសវាងការគាំង (Failed to respond) នៅលើ Railway
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, startup_tasks)
     
     yield
     
