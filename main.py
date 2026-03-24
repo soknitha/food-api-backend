@@ -68,6 +68,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
 
+# ---------------- Middleware: Auto-Detect Real Domain ---------------- #
+from starlette.middleware.base import BaseHTTPMiddleware
+class DomainFixerMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        host = request.headers.get("host")
+        if host and "127.0.0.1" not in host and "localhost" not in host:
+            scheme = request.headers.get("x-forwarded-proto", "https")
+            # Update global config dynamically so Telegram Bot knows the real URL
+            if getattr(config, "DOMAIN", "") != host:
+                config.DOMAIN = host
+                config.MINI_APP_URL = f"{scheme}://{host}/miniapp"
+        return await call_next(request)
+app.add_middleware(DomainFixerMiddleware)
+
 # ---------------- Real-time WebSockets Manager (ល្បឿនផ្លេកបន្ទោរ) ---------------- #
 class WSConnectionManager:
     def __init__(self):
@@ -286,7 +300,11 @@ def read_root():
 
 @app.get("/init", response_class=HTMLResponse)
 def init_system(request: Request):
-    return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធ Bot កំពុងដំណើរការដោយស្វ័យប្រវត្តិ (Polling Mode)!</h2><h3 style='color:green;'>សូមចូលទៅ Telegram រួចចុច /start ឥឡូវនេះ</h3></div>"
+    host = request.headers.get("host", "Unknown")
+    scheme = request.headers.get("x-forwarded-proto", "https")
+    config.DOMAIN = host
+    config.MINI_APP_URL = f"{scheme}://{host}/miniapp"
+    return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធបានចាប់យក Domain ដោយស្វ័យប្រវត្តិជោគជ័យ!</h2><h3 style='color:green;'>Domain បច្ចុប្បន្ន៖ {host}</h3><p>🔗 URL របស់ Mini App ឥឡូវគឺ៖ <b>{config.MINI_APP_URL}</b></p><br><h3>👉 សូមចូលទៅកាន់ Telegram រួចចុច <b style='color:blue;'>/start</b> ម្តងទៀត ដើម្បីបើកមុខម្ហូប។</h3></div>"
 
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
@@ -842,19 +860,19 @@ def get_menu(response: Response):
         return menu_cache
     if USE_SUPABASE:
         try:
-            response = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
-            menu_cache = response.data
+                res_db = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
+                menu_cache = res_db.data
             last_menu_fetch = time.time()
             return menu_cache
         except Exception as e:
             print(f"⚠️ Column sort_order missing, falling back to id: {e}")
             try:
-                response = supabase.table("menu").select("*").order("id").execute()
-                return response.data
+                    res_db = supabase.table("menu").select("*").order("id").execute()
+                    return res_db.data
             except Exception as e2:
                 try:
-                    response = supabase.table("menu").select("*").execute()
-                    return response.data
+                        res_db = supabase.table("menu").select("*").execute()
+                        return res_db.data
                 except Exception as e3:
                     pass # បើ Supabase គាំងទាំងស្រុង, បន្តទៅប្រើទិន្នន័យបម្រុងពី Memory
     return sorted(menu_db, key=lambda x: (x.get("sort_order", 999), x["id"]))
