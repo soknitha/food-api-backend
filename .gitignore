@@ -1,16 +1,5 @@
-# បិទមិនឱ្យ Upload ឯកសារ Cache របស់ Python
+.env
 __pycache__/
-*.py[cod]
-*$py.class
-
-# បិទមិនឱ្យ Upload កម្មវិធីដែលបាន Build រួច (មានទំហំធំ)
-build/
-dist/
-*.spec
-
-# បិទមិនឱ្យ Upload ឯកសារផ្ទុកលេខសម្ងាត់ Local
+*.pyc
 credentials.json
-
-# បិទមិនឱ្យ Upload Virtual Environment
-venv/
-env/
+static/uploads/
