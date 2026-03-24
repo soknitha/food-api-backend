@@ -45,57 +45,28 @@ async def lifespan(app: FastAPI):
     def startup_tasks():
         try:
             download_khmer_font()
-            print(f"ℹ️  Attempting to set webhook to: {config.WEBHOOK_URL}")
+            print("ℹ️  Attempting to remove webhook and start polling...")
             bot.remove_webhook()
-            bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True)
-            
-            # Verify webhook is set correctly
-            webhook_info = bot.get_webhook_info()
-            if webhook_info.url == config.WEBHOOK_URL:
-                print(f"✅ Webhook successfully set to: {config.WEBHOOK_URL}")
-            else:
-                print(f"⚠️ Webhook mismatch. Expected {config.WEBHOOK_URL}, but found {webhook_info.url}. Retrying...", file=sys.stderr)
-                bot.set_webhook(url=config.WEBHOOK_URL, drop_pending_updates=True)
-                if bot.get_webhook_info().url == config.WEBHOOK_URL:
-                     print(f"✅ Webhook successfully reset to: {config.WEBHOOK_URL}")
-                else:
-                     print(f"❌ FATAL: Failed to set webhook. Found: {bot.get_webhook_info().url}", file=sys.stderr)
+            import threading
+            # ប្រើ Long Polling ជាលក្ខណៈ Background Thread ធានាថា Bot ដើរ ១០០% មិនគាំង
+            polling_thread = threading.Thread(target=bot.infinity_polling, kwargs={"skip_pending": True}, daemon=True)
+            polling_thread.start()
+            print("✅ Bot is now running via Long Polling (Bulletproof mode)!")
         except Exception as e:
             print(f"⚠️ Warning: Could not setup startup tasks: {e}", file=sys.stderr)
             
-    # ប្រើប្រាស់ Background Thread ដើម្បីបើកផ្លូវឱ្យ Server (Uvicorn) ដំណើរការបានភ្លាមៗ ជៀសវាងការគាំង (Failed to respond) នៅលើ Railway
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, startup_tasks)
     
     yield
     
-    # Clean up and remove webhook on shutdown
-    print("ℹ️  Application shutting down. Removing webhook...")
+    print("ℹ️  Application shutting down...")
     try:
-        bot.remove_webhook()
-        print("✅ Webhook removed successfully.")
+        bot.stop_polling()
     except Exception as e:
-        print(f"⚠️ Warning: Could not remove webhook on shutdown: {e}", file=sys.stderr)
+        pass
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
-
-# ---------------- Middleware: Auto-Fix Webhook URL ---------------- #
-from starlette.middleware.base import BaseHTTPMiddleware
-class WebhookFixerMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if not hasattr(app.state, "webhook_fixed"):
-            host = request.headers.get("host")
-            if host and "127.0.0.1" not in host and "localhost" not in host:
-                scheme = request.headers.get("x-forwarded-proto", "https")
-                real_webhook_url = f"{scheme}://{host}/webhook"
-                if real_webhook_url != config.WEBHOOK_URL:
-                    try:
-                        bot.set_webhook(url=real_webhook_url, drop_pending_updates=True)
-                        config.WEBHOOK_URL = real_webhook_url
-                    except Exception: pass
-            app.state.webhook_fixed = True
-        return await call_next(request)
-app.add_middleware(WebhookFixerMiddleware)
 
 # ---------------- Real-time WebSockets Manager (ល្បឿនផ្លេកបន្ទោរ) ---------------- #
 class WSConnectionManager:
@@ -235,18 +206,7 @@ def read_root():
 
 @app.get("/init", response_class=HTMLResponse)
 def init_system(request: Request):
-    """ ប្រើសម្រាប់បង្ខំឱ្យ Telegram ស្គាល់ Domain ថ្មីដោយស្វ័យប្រវត្តិ (Magic Fix) """
-    host = request.headers.get("host")
-    scheme = request.headers.get("x-forwarded-proto", "https")
-    real_webhook_url = f"{scheme}://{host}/webhook"
-    
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(url=real_webhook_url, drop_pending_updates=True)
-        print(f"✅ Webhook Fixed: {real_webhook_url}")
-        return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធត្រូវបានជួសជុលជោគជ័យ!</h2><p>Webhook ថ្មីគឺ: <b>{real_webhook_url}</b></p><h3 style='color:green;'>សូមចូលទៅ Telegram រួចចុច /start ឥឡូវនេះ</h3></div>"
-    except Exception as e:
-        return f"<div style='text-align:center; color:red;'><h2>❌ មានកំហុស: {e}</h2></div>"
+    return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធ Bot កំពុងដំណើរការដោយស្វ័យប្រវត្តិ (Polling Mode)!</h2><h3 style='color:green;'>សូមចូលទៅ Telegram រួចចុច /start ឥឡូវនេះ</h3></div>"
 
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
@@ -759,7 +719,8 @@ menu_cache = []
 last_menu_fetch = 0
 
 @app.get("/api/menu")
-def get_menu():
+def get_menu(response: Response):
+    response.headers["Cache-Control"] = "public, max-age=15" # បង្ខំឱ្យទូរស័ព្ទ Save ទិន្នន័យនេះទុកក្នុង RAM ១៥វិនាទី
     global menu_cache, last_menu_fetch
     # កំណត់ Cache ៥ វិនាទី ដើម្បីឱ្យ Mini App ដើរលឿនដូចផ្លេកបន្ទោរ (Lightning Fast)
     if time.time() - last_menu_fetch < 5 and menu_cache:
@@ -1006,7 +967,8 @@ config_cache = {}
 last_config_fetch = 0
 
 @app.get("/api/config")
-def get_config():
+def get_config(response: Response):
+    response.headers["Cache-Control"] = "public, max-age=30" # បង្ខំឱ្យទូរស័ព្ទ Save ការកំណត់រយៈពេល ៣០វិនាទី
     global config_cache, last_config_fetch
     if time.time() - last_config_fetch < 10 and config_cache:
         return config_cache
