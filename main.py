@@ -860,19 +860,19 @@ def get_menu(response: Response):
         return menu_cache
     if USE_SUPABASE:
         try:
-                res_db = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
-                menu_cache = res_db.data
+            res_db = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
+            menu_cache = res_db.data
             last_menu_fetch = time.time()
             return menu_cache
         except Exception as e:
             print(f"⚠️ Column sort_order missing, falling back to id: {e}")
             try:
-                    res_db = supabase.table("menu").select("*").order("id").execute()
-                    return res_db.data
+                res_db = supabase.table("menu").select("*").order("id").execute()
+                return res_db.data
             except Exception as e2:
                 try:
-                        res_db = supabase.table("menu").select("*").execute()
-                        return res_db.data
+                    res_db = supabase.table("menu").select("*").execute()
+                    return res_db.data
                 except Exception as e3:
                     pass # បើ Supabase គាំងទាំងស្រុង, បន្តទៅប្រើទិន្នន័យបម្រុងពី Memory
     return sorted(menu_db, key=lambda x: (x.get("sort_order", 999), x["id"]))
