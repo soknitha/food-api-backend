@@ -276,7 +276,7 @@ def get_orders():
                 response = supabase.table("orders").select("*").execute()
                 return response.data
             except Exception as e2:
-                return []
+                pass # បើ Supabase គាំងទាំងស្រុង, បន្តទៅប្រើទិន្នន័យបម្រុងពី Memory
     return orders_db
 
 @app.post("/api/orders")
@@ -748,7 +748,11 @@ def get_menu():
                 response = supabase.table("menu").select("*").order("id").execute()
                 return response.data
             except Exception as e2:
-                return []
+                try:
+                    response = supabase.table("menu").select("*").execute()
+                    return response.data
+                except Exception as e3:
+                    pass # បើ Supabase គាំងទាំងស្រុង, បន្តទៅប្រើទិន្នន័យបម្រុងពី Memory
     return sorted(menu_db, key=lambda x: (x.get("sort_order", 999), x["id"]))
 
 @app.put("/api/menu/reorder")
@@ -862,7 +866,7 @@ def get_users():
             return response.data
         except Exception as e:
             print(f"⚠️ Error fetching users: {e}")
-            return []
+            pass # បន្តទៅប្រើទិន្នន័យបម្រុងពី Memory
     return users_db
 
 @app.post("/api/users")
