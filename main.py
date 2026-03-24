@@ -13,6 +13,7 @@ import telebot
 from telegram_bot import bot
 from google import genai
 from google.genai import types
+import time
 
 # Import the centralized configuration
 import config
@@ -77,6 +78,24 @@ async def lifespan(app: FastAPI):
         print(f"⚠️ Warning: Could not remove webhook on shutdown: {e}", file=sys.stderr)
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
+
+# ---------------- Middleware: Auto-Fix Webhook URL ---------------- #
+from starlette.middleware.base import BaseHTTPMiddleware
+class WebhookFixerMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not hasattr(app.state, "webhook_fixed"):
+            host = request.headers.get("host")
+            if host and "127.0.0.1" not in host and "localhost" not in host:
+                scheme = request.headers.get("x-forwarded-proto", "https")
+                real_webhook_url = f"{scheme}://{host}/webhook"
+                if real_webhook_url != config.WEBHOOK_URL:
+                    try:
+                        bot.set_webhook(url=real_webhook_url, drop_pending_updates=True)
+                        config.WEBHOOK_URL = real_webhook_url
+                    except Exception: pass
+            app.state.webhook_fixed = True
+        return await call_next(request)
+app.add_middleware(WebhookFixerMiddleware)
 
 # ---------------- Real-time WebSockets Manager (ល្បឿនផ្លេកបន្ទោរ) ---------------- #
 class WSConnectionManager:
@@ -736,12 +755,21 @@ def upload_receipt(data: OrderReceipt):
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
         return {"error": "Payment verification failed", "reason": ai_reason, "verified": False}
 
+menu_cache = []
+last_menu_fetch = 0
+
 @app.get("/api/menu")
 def get_menu():
+    global menu_cache, last_menu_fetch
+    # កំណត់ Cache ៥ វិនាទី ដើម្បីឱ្យ Mini App ដើរលឿនដូចផ្លេកបន្ទោរ (Lightning Fast)
+    if time.time() - last_menu_fetch < 5 and menu_cache:
+        return menu_cache
     if USE_SUPABASE:
         try:
             response = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
-            return response.data
+            menu_cache = response.data
+            last_menu_fetch = time.time()
+            return menu_cache
         except Exception as e:
             print(f"⚠️ Column sort_order missing, falling back to id: {e}")
             try:
@@ -974,13 +1002,21 @@ def get_user_points(chat_id: str):
     return {"points": 0}
 
 # ---------------- Dynamic Mini App Config ---------------- #
+config_cache = {}
+last_config_fetch = 0
+
 @app.get("/api/config")
 def get_config():
+    global config_cache, last_config_fetch
+    if time.time() - last_config_fetch < 10 and config_cache:
+        return config_cache
     if USE_SUPABASE:
         try:
             res = supabase.table("config").select("*").eq("id", 1).execute()
             if res.data:
-                return {**app_config_db, **res.data[0]} # បញ្ចូលទិន្នន័យពី DB ទៅលើសភាពដើម
+                config_cache = {**app_config_db, **res.data[0]}
+                last_config_fetch = time.time()
+                return config_cache # បញ្ចូលទិន្នន័យពី DB ទៅលើសភាពដើម
         except Exception as e:
             print("Error fetching config:", e)
     return app_config_db

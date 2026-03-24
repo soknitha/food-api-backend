@@ -78,7 +78,7 @@ def send_welcome(message):
         # Register or update user info via API
         requests.post(f"{config.API_BASE_URL}/users", json={
             "id": str(message.from_user.id), "name": message.from_user.first_name or "N/A", "language": "km"
-        }, timeout=5)
+        }, timeout=15)
     except Exception as e:
         print(f"⚠️ Error saving initial user {message.chat.id}: {e}", file=sys.stderr)
 
@@ -108,7 +108,7 @@ def set_language(call):
     user_langs[chat_id] = lang
     
     try: # Save language preference persistently
-        requests.post(f"{config.API_BASE_URL}/users", json={"id": str(chat_id), "name": call.from_user.first_name or "N/A", "language": lang}, timeout=5)
+        requests.post(f"{config.API_BASE_URL}/users", json={"id": str(chat_id), "name": call.from_user.first_name or "N/A", "language": lang}, timeout=15)
     except Exception as e:
         print(f"⚠️ Error saving language for {chat_id}: {e}", file=sys.stderr)
 
@@ -129,14 +129,15 @@ def show_main_menu(chat_id, lang="km"):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pickup_') or call.data.startswith('delivery_'))
 def handle_delivery_choice(call):
+    bot.answer_callback_query(call.id, text="⏳ កំពុងដំណើរការ... / Processing...")
     action, order_id = call.data.split('_', 1)
     chat_id = str(call.message.chat.id)
     
     try:
         if action == "pickup":
-            requests.post(f"{config.API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0}, timeout=5)
+            requests.post(f"{config.API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0}, timeout=20)
         elif action == "delivery":
-            requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=5)
+            requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=20)
             reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             reply_markup.add(KeyboardButton("📍 Send My Location", request_location=True))
             bot.send_message(chat_id, "📍 *Please send your location* for our system to calculate the delivery fee.", reply_markup=reply_markup, parse_mode="Markdown")
@@ -148,7 +149,7 @@ def handle_delivery_choice(call):
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
     try:
-        requests.post(f"{config.API_BASE_URL}/users", json={"id": str(message.chat.id), "name": message.from_user.first_name, "phone": message.contact.phone_number}, timeout=5)
+        requests.post(f"{config.API_BASE_URL}/users", json={"id": str(message.chat.id), "name": message.from_user.first_name, "phone": message.contact.phone_number}, timeout=15)
         bot.send_message(message.chat.id, "✅ Phone number saved!")
     except Exception as e:
         print(f"⚠️ Contact save error for {message.chat.id}: {e}", file=sys.stderr)
@@ -158,12 +159,12 @@ def handle_location(message):
     chat_id = str(message.chat.id)
     lat, lon = message.location.latitude, message.location.longitude
     try:
-        requests.post(f"{config.API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": f"{lat},{lon}"}, timeout=5)
+        requests.post(f"{config.API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": f"{lat},{lon}"}, timeout=15)
     except Exception as e:
         print(f"⚠️ Location save error for {chat_id}: {e}", file=sys.stderr)
         
     try:
-        res = requests.post(f"{config.API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=10)
+        res = requests.post(f"{config.API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=20)
         if res.status_code == 200 and "ok" in res.json().get("status", ""):
             bot.send_message(chat_id, "✅ Location received! The system is preparing your bill...")
         else:
@@ -179,7 +180,7 @@ def handle_payment_screenshot(message):
         file_info = bot.get_file(message.photo[-1].file_id)
         file_url = f"https://api.telegram.org/file/bot{config.BOT_TOKEN}/{file_info.file_path}"
         
-        response = requests.post(f"{config.API_BASE_URL}/orders/receipt", json={"chat_id": str(message.chat.id), "image_url": file_url}, timeout=20)
+        response = requests.post(f"{config.API_BASE_URL}/orders/receipt", json={"chat_id": str(message.chat.id), "image_url": file_url}, timeout=40)
         
         if response.status_code == 200 and not response.json().get("error"):
             bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
