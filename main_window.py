@@ -1,7 +1,6 @@
 import os
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QTabWidget
-from PyQt5.QtGui import QFont, QIcon
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 
 from views.dashboard_page import DashboardPage
 from views.orders_page import OrdersPage

@@ -119,12 +119,13 @@ class UsersPage(QWidget):
             QMessageBox.warning(self, "ជូនដំណឹង", "សូមបំពេញឈ្មោះ និងលេខទូរស័ព្ទ!")
             return
             
-        if APIClient.add_user({"name": name, "phone": phone}):
+        success, msg = APIClient.add_user({"name": name, "phone": phone})
+        if success:
             self.name_input.clear()
             self.phone_input.clear()
             self.load_users()
         else:
-            QMessageBox.critical(self, "កំហុស", "មិនអាចភ្ជាប់ទៅកាន់ Server បានទេ!")
+            QMessageBox.critical(self, "កំហុស", f"មិនអាចបន្ថែមអតិថិជនបានទេ!\nបញ្ហា: {msg}")
 
     def delete_user(self):
         current_row = self.table.currentRow()

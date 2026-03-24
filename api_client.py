@@ -38,6 +38,16 @@ class APIClient:
         return []
 
     @staticmethod
+    def reorder_menu(items):
+        try:
+            response = session.put(f"{API_BASE_URL}/menu/reorder", json=items, timeout=15)
+            if response.ok: return True, ""
+            return False, f"Server Error: {response.status_code} - {response.text}"
+        except Exception as e:
+            print("Error API Reorder Menu:", e)
+            return False, f"Network Error: {e}"
+
+    @staticmethod
     def add_menu_item(data):
         try:
             # កំណត់ timeout=30 វិនាទី ការពារ Server Render យឺត (Sleep)
@@ -90,10 +100,11 @@ class APIClient:
     def add_user(data):
         try:
             response = session.post(f"{API_BASE_URL}/users", json=data, timeout=15)
-            return response.status_code == 200
+            if response.ok: return True, ""
+            return False, f"Server Error: {response.status_code} - {response.text}"
         except Exception as e:
             print("Error API Add User:", e)
-            return False
+            return False, f"Network Error: {e}"
 
     @staticmethod
     def delete_user(user_id):

@@ -40,19 +40,6 @@ class ReceiptDialog(QDialog):
         self.text_browser = QTextBrowser()
         self.text_browser.setStyleSheet("border: 1px solid #eee; border-radius: 5px;")
         layout.addWidget(self.text_browser)
-        
-        logo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logo.png')).replace('\\', '/')
-        
-        # ឆែកមើលក្នុង credentials.json បើ Admin បានដូរ Logo ថ្មី
-        import json
-        if os.path.exists("credentials.json"):
-            try:
-                with open("credentials.json", "r") as f:
-                    c_data = json.load(f)
-                    if c_data.get("logo_path") and os.path.exists(c_data.get("logo_path")):
-                        logo_path = os.path.abspath(c_data.get("logo_path")).replace('\\', '/')
-            except:
-                pass
 
         btn_layout = QHBoxLayout()
         
@@ -85,7 +72,8 @@ class ReceiptDialog(QDialog):
                     c_data = json.load(f)
                     if c_data.get("logo_path") and os.path.exists(c_data.get("logo_path")):
                         logo_path = os.path.abspath(c_data.get("logo_path")).replace('\\', '/')
-            except: pass
+            except Exception:
+                pass
         
         raw_items = self.items.replace('\n', ',').split(',')
         table_rows = ""
@@ -94,7 +82,8 @@ class ReceiptDialog(QDialog):
         
         for item_str in raw_items:
             item_str = item_str.strip()
-            if not item_str: continue
+            if not item_str:
+                continue
             
             if "🎁" in item_str or "ប្រើប្រាស់" in item_str:
                 discount_row = item_str
@@ -103,8 +92,10 @@ class ReceiptDialog(QDialog):
             parts = item_str.rsplit('x', 1)
             if len(parts) == 2:
                 name = parts[0].strip()
-                try: qty = int(parts[1].strip())
-                except: qty = 1
+                try:
+                    qty = int(parts[1].strip())
+                except Exception:
+                    qty = 1
             else:
                 name = item_str
                 qty = 1
@@ -392,11 +383,16 @@ class OrdersPage(QWidget):
                     
                     count_all += 1
                     st = item_status.text()
-                    if "ថ្មី" in st: count_new += 1
-                    elif "ចម្អិន" in st: count_cooking += 1
-                    elif "ដឹកជញ្ជូន" in st: count_delivering += 1
-                    elif "រួចរាល់" in st: count_completed += 1
-                    elif "លុបចោល" in st: count_cancelled += 1
+                    if "ថ្មី" in st:
+                        count_new += 1
+                    elif "ចម្អិន" in st:
+                        count_cooking += 1
+                    elif "ដឹកជញ្ជូន" in st:
+                        count_delivering += 1
+                    elif "រួចរាល់" in st:
+                        count_completed += 1
+                    elif "លុបចោល" in st:
+                        count_cancelled += 1
                 else:
                     self.table.setRowHidden(row, True)
                     
@@ -439,7 +435,7 @@ class OrdersPage(QWidget):
         
         is_paid = "មានរូបភាព" in receipt_col or "រួចរាល់" in status
         dialog = ReceiptDialog(order_id, order_time, customer, items, total, is_paid, self)
-        dialog.exec_()
+        dialog.exec() # ប្រើប្រាស់ exec() ស្តង់ដារថ្មី
 
     def view_receipt_image(self):
         current_row = self.table.currentRow()
@@ -455,7 +451,8 @@ class OrdersPage(QWidget):
             QMessageBox.information(self, "គ្មានរូបភាព", "អតិថិជនមិនទាន់បានផ្ញើរូបភាពបង់ប្រាក់សម្រាប់ការកុម្ម៉ង់នេះទេ។")
 
     def load_orders(self):
-        if hasattr(self, 'worker') and self.worker.isRunning(): return
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
         self.btn_refresh.setText("⏳ កំពុងទាញយក...")
         self.worker = OrdersWorker()
         self.worker.data_loaded.connect(self.process_orders_data)
