@@ -841,34 +841,9 @@ def get_users():
 def add_user(user: UserItem):
     import random
     # ប្រសិនបើជា Admin បន្ថែមដោយផ្ទាល់ពីកុំព្យូទ័រ (អត់មាន Telegram ID) វានឹងបង្កើត ID ថ្មី
-    user_id_str = str(user.id) if user.id else f"manual_{random.randint(10000, 99999)}"
     user_id_str = str(user.id) if user.id else f"99{random.randint(1000000, 9999999)}"
     
     if USE_SUPABASE:
-        res = supabase.table("users").select("*").eq("id", user_id_str).execute()
-        if res.data:
-            update_data = {"name": user.name}
-            if user.phone and user.phone != "N/A":
-                update_data["phone"] = user.phone
-            if user.location:
-                update_data["location"] = user.location
-            if user.language:
-                update_data["language"] = user.language
-            try:
-                response = supabase.table("users").update(update_data).eq("id", user_id_str).execute()
-                return response.data[0] if response.data else None
-            except Exception:
-                update_data.pop("location", None)
-                update_data.pop("language", None)
-                response = supabase.table("users").update(update_data).eq("id", user_id_str).execute()
-                return response.data[0] if response.data else None
-        else:
-            try:
-                response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", ""), "language": user.language or "km"}).execute()
-                return response.data[0] if response.data else None
-            except Exception:
-                response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str}).execute()
-                return response.data[0] if response.data else None
         try:
             res = supabase.table("users").select("*").eq("id", user_id_str).execute()
             if res.data:
