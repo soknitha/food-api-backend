@@ -251,7 +251,9 @@ BOT_LANG_DICT = {
         "receipt_total": "សរុប / Total Due:",
         "receipt_paid": "បានបង់ / Amount Paid:",
         "receipt_footer": "*** បង់ប្រាក់រួចរាល់ ***",
-        "receipt_thanks": "សូមអរគុណដែលបានគាំទ្រ!"
+        "receipt_thanks": "សូមអរគុណដែលបានគាំទ្រ!",
+        "ai_error": "មានបញ្ហាក្នុងការស្កេនវិក្កយបត្រ សូមសាកល្បងម្ដងទៀត។",
+        "payment_reject_user": "⚠️ *ការទូទាត់ត្រូវបានបដិសេធ!*\n\nមូលហេតុ: {reason}\n\nសូមថតរូបវិក្កយបត្រឱ្យបានច្បាស់ រួចផ្ញើម្ដងទៀត ឬទាក់ទងមកកាន់ Admin។"
     },
     "zh": {
         "checkout_initial": "🎉 *收到初步订单！*\n\n🧾 订单编号: `{order_id}`\n\n您想自取还是让我们送货？",
@@ -272,7 +274,9 @@ BOT_LANG_DICT = {
         "receipt_total": "总计 / Total Due:",
         "receipt_paid": "已付 / Amount Paid:",
         "receipt_footer": "*** 已付款 ***",
-        "receipt_thanks": "感谢您的支持！"
+        "receipt_thanks": "感谢您的支持！",
+        "ai_error": "扫描收据时出错。请重试。",
+        "payment_reject_user": "⚠️ *付款被拒绝！*\n\n原因: {reason}\n\n请清晰拍照并重试，或联系管理员。"
     },
     "en": {
         "checkout_initial": "🎉 *Preliminary Order Received!*\n\n🧾 Invoice No: `{order_id}`\n\nWould you like to pick it up or have it delivered?",
@@ -293,7 +297,9 @@ BOT_LANG_DICT = {
         "receipt_total": "Total Due:",
         "receipt_paid": "Amount Paid:",
         "receipt_footer": "*** PAID ***",
-        "receipt_thanks": "Thank you for your support!"
+        "receipt_thanks": "Thank you for your support!",
+        "ai_error": "Error scanning receipt. Please try again.",
+        "payment_reject_user": "⚠️ *Payment Rejected!*\n\nReason: {reason}\n\nPlease take a clear photo and try again, or contact Admin."
     }
 }
 
@@ -349,7 +355,9 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
 
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
 @app.get("/miniapp", response_class=HTMLResponse)
-def serve_miniapp():
+def serve_miniapp(response: Response):
+    # បំពាក់ Cache-Control រក្សាគេហទំព័រទុក ១ថ្ងៃពេញ ធ្វើឱ្យ Mini App បើកលោតចេញភ្លាមៗ (0ms)
+    response.headers["Cache-Control"] = "public, max-age=86400"
     # ប្រើប្រាស់ទីតាំងពិតប្រាកដ (Absolute Path) ដើម្បីប្រាកដថាវារកឃើញឯកសារ index.html ជានិច្ច
     html_path = os.path.join(os.path.dirname(__file__), "index.html")
     if os.path.exists(html_path):
@@ -847,7 +855,7 @@ def upload_receipt(data: OrderReceipt):
         except Exception as e:
             print(f"AI Verification Error: {e}")
             is_valid = False
-            ai_reason = "មានបញ្ហាភ្ជាប់ទៅកាន់ប្រព័ន្ធ AI ស្កេនរូបភាព"
+            ai_reason = lang_texts.get("ai_error", "Error")
 
     if is_valid:
         if USE_SUPABASE:
@@ -869,7 +877,8 @@ def upload_receipt(data: OrderReceipt):
     else:
         admin_msg = f"⚠️ *ការព្រមានពីប្រព័ន្ធ AI (ការទូទាត់មានបញ្ហា)!*\n\nការកុម្ម៉ង់លេខ `{pending_order['id']}` របស់អតិថិជន {pending_order['customer']} ត្រូវបានរកឃើញភាពមិនប្រក្រតី។\n\n📉 តម្រូវការទឹកប្រាក់: `${expected_total}`\n🔍 មូលហេតុពី AI: {ai_reason}\n\nសូម Admin ពិនិត្យឡើងវិញជាបន្ទាន់ជាមួយភ្ញៀវ។"
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
-        return {"error": "Payment verification failed", "reason": ai_reason, "verified": False}
+        user_reject_reason = lang_texts["payment_reject_user"].format(reason=ai_reason)
+        return {"error": "Payment verification failed", "reason": user_reject_reason, "verified": False}
 
 menu_cache = []
 last_menu_fetch = 0

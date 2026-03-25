@@ -213,7 +213,7 @@ def handle_payment_screenshot(message):
             bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
         else:
             reason = response.json().get("reason", texts["receipt_fail"])
-            bot.reply_to(message, f"⚠️ {reason}")
+            bot.reply_to(message, reason, parse_mode="Markdown")
 
     except Exception as e:
         bot.reply_to(message, texts["error"])

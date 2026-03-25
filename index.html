@@ -53,6 +53,8 @@
         let cart = {};
         let userProfile = { id: "unknown", name: "Guest" };
 
+        const API_BASE = window.location.origin + '/api';
+
         // Init Telegram Web App
         const tg = window.Telegram.WebApp;
         tg.expand();
@@ -64,7 +66,7 @@
 
         async function fetchMenu() {
             try {
-                const response = await fetch('/api/menu');
+                const response = await fetch(`${API_BASE}/menu`);
                 menuData = await response.json();
                 renderMenu();
             } catch (error) {
@@ -163,7 +165,7 @@
             };
 
             try {
-                const response = await fetch('/api/miniapp/checkout', {
+                const response = await fetch(`${API_BASE}/miniapp/checkout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(orderData)
