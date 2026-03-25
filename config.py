@@ -34,8 +34,14 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # ប្រព័ន្ធធានាភាពត្រឹមត្រូវនៃ URL (Auto-Clean): កាត់ចោល https:// និង / ដែលលើសដើម្បីការពារការគាំង
-RAW_DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app").strip()
-DOMAIN = RAW_DOMAIN.replace("https://", "").replace("http://", "").split("/")[0]
+RAW_DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
+
+# ដំណោះស្រាយផ្ដាច់ព្រ័ត្រ: បង្ខំកំណត់ Domain ផ្ទាល់តែម្តង ដើម្បីការពារ URL ទទេដែលធ្វើឱ្យ Telegram គាំង
+if not RAW_DOMAIN or RAW_DOMAIN == "/":
+    RAW_DOMAIN = "web-production-88028.up.railway.app"
+
+DOMAIN = RAW_DOMAIN.replace("https://", "").replace("http://", "").split("/")[0].strip()
+
 PORT = int(os.getenv("PORT", 8000))
 
 # 3. Define Derived and Static Configuration

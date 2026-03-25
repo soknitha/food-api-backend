@@ -161,7 +161,9 @@ def show_main_menu(chat_id, lang="km"):
     inline_markup = InlineKeyboardMarkup(row_width=1)
     btn_inline_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=pure_url))
     btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
-    inline_markup.add(btn_inline_app, btn_support)
+    # បន្ថែមប៊ូតុងទី៣ (Link សុទ្ធ) ជាជំនួយបម្រុង ប្រសិនបើទូរស័ព្ទភ្ញៀវមិនគាំទ្រ WebAppInfo
+    btn_fallback = InlineKeyboardButton("🔗 បើកតាម Browser (បើចុចខាងលើមិនដើរ)", url=pure_url)
+    inline_markup.add(btn_inline_app, btn_fallback, btn_support)
     
     full_text = f"{texts['welcome']}\n\n{texts['choose']}"
     
