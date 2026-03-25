@@ -958,10 +958,13 @@ def add_menu(item: MenuItem, background_tasks: BackgroundTasks):
     if USE_SUPABASE:
         try:
             response = supabase.table("menu").insert({"name": item.name, "price": item.price, "image_url": item.image_url}).execute()
+            if not response.data:
+                raise HTTPException(status_code=403, detail="❌ ការបញ្ជូលត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាព។ សូមចូលទៅបិទ RLS (Disable RLS) លើ Table 'menu' ក្នុងគណនី Supabase របស់អ្នកជាបន្ទាន់។")
             background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", item.model_dump())
-            return response.data[0] if response.data else {"id": 0, "name": item.name, "price": item.price, "image_url": item.image_url}
+            return response.data[0]
         except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
+            if isinstance(e, HTTPException): raise e
+            raise HTTPException(status_code=400, detail=f"Database Error: {str(e)}")
     global menu_id_counter
     new_item = {"id": menu_id_counter, "name": item.name, "price": item.price, "image_url": item.image_url}
     menu_db.append(new_item)
@@ -973,10 +976,13 @@ def update_menu(item_id: int, item: MenuItem, background_tasks: BackgroundTasks)
     if USE_SUPABASE:
         try:
             response = supabase.table("menu").update({"name": item.name, "price": item.price, "image_url": item.image_url}).eq("id", item_id).execute()
+            if not response.data:
+                raise HTTPException(status_code=403, detail="❌ ការកែប្រែត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាព។ សូមចូលទៅបិទ RLS (Disable RLS) លើ Table 'menu' ក្នុង Supabase។")
             background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", item.model_dump())
-            return response.data[0] if response.data else {"id": item_id, "name": item.name, "price": item.price, "image_url": item.image_url}
+            return response.data[0]
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
+            if isinstance(e, HTTPException): raise e
+            raise HTTPException(status_code=400, detail=f"Database Error: {str(e)}")
     global menu_db
     for m in menu_db:
         if m["id"] == item_id:
