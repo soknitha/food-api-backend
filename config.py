@@ -32,7 +32,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "REPLACE_ME.up.railway.app")
+DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app")
 PORT = int(os.getenv("PORT", 8000))
 
 # 3. Define Derived and Static Configuration

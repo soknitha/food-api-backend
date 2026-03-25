@@ -253,7 +253,9 @@ BOT_LANG_DICT = {
         "receipt_footer": "*** បង់ប្រាក់រួចរាល់ ***",
         "receipt_thanks": "សូមអរគុណដែលបានគាំទ្រ!",
         "ai_error": "មានបញ្ហាក្នុងការស្កេនវិក្កយបត្រ សូមសាកល្បងម្ដងទៀត។",
-        "payment_reject_user": "⚠️ *ការទូទាត់ត្រូវបានបដិសេធ!*\n\nមូលហេតុ: {reason}\n\nសូមថតរូបវិក្កយបត្រឱ្យបានច្បាស់ រួចផ្ញើម្ដងទៀត ឬទាក់ទងមកកាន់ Admin។"
+        "payment_reject_user": "⚠️ *ការទូទាត់ត្រូវបានបដិសេធ!*\n\nមូលហេតុ: {reason}\n\nសូមថតរូបវិក្កយបត្រឱ្យបានច្បាស់ រួចផ្ញើម្ដងទៀត ឬទាក់ទងមកកាន់ Admin។",
+        "ai_error_scan": "ប្រព័ន្ធមិនអាចអានចំនួនទឹកប្រាក់ពីរូបភាពនេះបានទេ។ សូមថតឱ្យបានច្បាស់។",
+        "ai_error_amount": "ចំនួនទឹកប្រាក់មិនគ្រប់គ្រាន់ (បានបង់: ${paid:.2f} / ត្រូវបង់: ${expected:.2f})។"
     },
     "zh": {
         "checkout_initial": "🎉 *收到初步订单！*\n\n🧾 订单编号: `{order_id}`\n\n您想自取还是让我们送货？",
@@ -276,7 +278,9 @@ BOT_LANG_DICT = {
         "receipt_footer": "*** 已付款 ***",
         "receipt_thanks": "感谢您的支持！",
         "ai_error": "扫描收据时出错。请重试。",
-        "payment_reject_user": "⚠️ *付款被拒绝！*\n\n原因: {reason}\n\n请清晰拍照并重试，或联系管理员。"
+        "payment_reject_user": "⚠️ *付款被拒绝！*\n\n原因: {reason}\n\n请清晰拍照并重试，或联系管理员。",
+        "ai_error_scan": "系统无法从此图像中读取金额。请重新拍摄清晰的照片。",
+        "ai_error_amount": "付款金额不足（已付: ${paid:.2f} / 应付: ${expected:.2f}）。"
     },
     "en": {
         "checkout_initial": "🎉 *Preliminary Order Received!*\n\n🧾 Invoice No: `{order_id}`\n\nWould you like to pick it up or have it delivered?",
@@ -299,7 +303,9 @@ BOT_LANG_DICT = {
         "receipt_footer": "*** PAID ***",
         "receipt_thanks": "Thank you for your support!",
         "ai_error": "Error scanning receipt. Please try again.",
-        "payment_reject_user": "⚠️ *Payment Rejected!*\n\nReason: {reason}\n\nPlease take a clear photo and try again, or contact Admin."
+        "payment_reject_user": "⚠️ *Payment Rejected!*\n\nReason: {reason}\n\nPlease take a clear photo and try again, or contact Admin.",
+        "ai_error_scan": "The system could not read the amount from this image. Please take a clear photo.",
+        "ai_error_amount": "Insufficient payment amount (Paid: ${paid:.2f} / Expected: ${expected:.2f})."
     }
 }
 
@@ -574,9 +580,9 @@ def process_location_api(data: ProcessLocationReq):
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         return R * c
         
-    # ទីតាំងហាងជាក់ស្តែង (HV46+P8 Phnom Penh) ប្រហែល 11.5564, 104.9282
-    STORE_LAT = 11.5564
-    STORE_LON = 104.9282
+    # ទីតាំងហាងជាក់ស្តែងទំនើបបំផុត Xiao Yue Xiao Chi (HV46+P8 Phnom Penh)
+    STORE_LAT = 11.556100
+    STORE_LON = 104.928500
     dist = calculate_distance(STORE_LAT, STORE_LON, data.lat, data.lon)
     
     if dist <= 1:
@@ -821,7 +827,7 @@ def upload_receipt(data: OrderReceipt):
     import telegram_bot
     gemini_key = os.getenv("GEMINI_API_KEY", getattr(telegram_bot, "GEMINI_API_KEY", ""))
     is_valid = False
-    ai_reason = "ប្រព័ន្ធមិនអាចផ្ទៀងផ្ទាត់រូបភាពបានទេ"
+    ai_reason = lang_texts.get("ai_error_scan", "Cannot read amount.")
     extracted_amount = 0
     acc_name, trx_id = "N/A", "N/A"
 
@@ -831,27 +837,33 @@ def upload_receipt(data: OrderReceipt):
             img_data = requests.get(data.image_url).content
             
             prompt = f"""
-            You are a highly strictly payment verification system. Analyze this ABA/ACLEDA payment screenshot.
-            Extract these exact values: Total Amount (number only), Account Name (string), Trx. ID or Reference Number (string).
-            Compare the extracted amount with the expected total: {expected_total}.
-            If the extracted amount is EXACTLY EQUAL OR GREATER than {expected_total}, set is_match to true, otherwise false.
+            You are a highly precise payment verification AI. Analyze this ABA/ACLEDA bank receipt screenshot.
+            Extract these exact values carefully: Total Amount Paid (number only), Account Name (string), Trx. ID or Reference Number (string).
             Return ONLY a valid JSON object in this format (no markdown):
-            {{"extracted_amount": 15.50, "is_match": true, "trx_id": "123456789", "account_name": "HEM SINATH", "reason": "Amount verified."}}
-            IMPORTANT: The 'reason' MUST be accurately translated to the language code '{user_lang}' (km=Khmer, zh=Chinese, en=English).
+            {{"extracted_amount": 15.50, "trx_id": "123456789", "account_name": "HEM SINATH"}}
             """
             
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=[types.Part.from_bytes(data=img_data, mime_type='image/jpeg'), prompt],
-                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.0)
+                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1)
             )
             import json
             result = json.loads(response.text)
-            is_valid = result.get("is_match", False)
-            ai_reason = result.get("reason", "មិនអាចផ្ទៀងផ្ទាត់បាន")
             extracted_amount = result.get("extracted_amount", 0)
             acc_name = result.get("account_name", "N/A")
             trx_id = result.get("trx_id", "N/A")
+            
+            # ធ្វើការគណនាដោយកូដ Python ផ្ទាល់ដើម្បីធានាភាពជាក់លាក់ ១០០% ឥតខ្ចោះ
+            if extracted_amount > 0 and extracted_amount >= expected_total:
+                is_valid = True
+            else:
+                is_valid = False
+                if extracted_amount == 0:
+                    ai_reason = lang_texts.get("ai_error_scan", "Error scanning.")
+                else:
+                    ai_reason = lang_texts.get("ai_error_amount", "Mismatch").format(paid=extracted_amount, expected=expected_total)
+                    
         except Exception as e:
             print(f"AI Verification Error: {e}")
             is_valid = False
