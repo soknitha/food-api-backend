@@ -141,14 +141,13 @@ def set_language(call):
 def show_main_menu(chat_id, lang="km"):
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
     
-    # ១. ប្រើ Link សុទ្ធ (គ្មានកន្ទុយ ?lang=) ដើម្បីការពារ Telegram ប្លុកមិនឱ្យបើក (Telegram Security Bug)
-    # ប្រព័ន្ធនឹងទាញយកភាសាដោយស្វ័យប្រវត្តិពី Database ជំនួសវិញ
-    pure_url = config.MINI_APP_URL
+    # ១. បញ្ចូលកន្ទុយ ?lang= ទៅក្នុង URL វិញ ដើម្បីឱ្យ Mini App ចាប់ភាសាបានភ្លាមៗ (Smart Language V2)
+    app_url = f"{config.MINI_APP_URL}?lang={lang}"
     
     # ២. បង្កើតប៊ូតុងម៉ឺនុយធំនៅខាងក្រោមបាតអេក្រង់ (Reply Keyboard)
     # ជាទម្រង់ Native ធានាថាដំណើរការ ១០០% ការពារការគាំង និងបញ្ជូនភាសាបានត្រឹមត្រូវ
     reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមចុចប៊ូតុងនៅទីនេះ...")
-    btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=pure_url))
+    btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
     
     phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
     reply_markup.row(btn_reply_app)
@@ -159,10 +158,10 @@ def show_main_menu(chat_id, lang="km"):
     
     # ៣. បង្កើតប៊ូតុងតូចភ្ជាប់នឹងសារ (Inline Keyboard ទុកជាជម្រើសទី២)
     inline_markup = InlineKeyboardMarkup(row_width=1)
-    btn_inline_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=pure_url))
+    btn_inline_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
     btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
     # បន្ថែមប៊ូតុងទី៣ (Link សុទ្ធ) ជាជំនួយបម្រុង ប្រសិនបើទូរស័ព្ទភ្ញៀវមិនគាំទ្រ WebAppInfo
-    btn_fallback = InlineKeyboardButton("🔗 បើកតាម Browser (បើចុចខាងលើមិនដើរ)", url=pure_url)
+    btn_fallback = InlineKeyboardButton("🔗 បើកតាម Browser (បើចុចខាងលើមិនដើរ)", url=app_url)
     inline_markup.add(btn_inline_app, btn_fallback, btn_support)
     
     full_text = f"{texts['welcome']}\n\n{texts['choose']}"
