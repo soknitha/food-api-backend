@@ -140,14 +140,33 @@ def set_language(call):
 
 def show_main_menu(chat_id, lang="km"):
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
-    markup = InlineKeyboardMarkup(row_width=1)
-    # ប្រើ Link សុទ្ធដូចប៊ូតុង Menu ដើមជាប់ប្រអប់ឆាត ដើម្បីការពារការគាំង ឬ Error ពី Telegram
-    btn_mini_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=config.MINI_APP_URL))
+    
+    # ១. កំណត់ Link ឆ្លាតវៃ (បញ្ជូនភាសាទៅកាន់ Mini App តាមការជ្រើសរើសរបស់ភ្ញៀវ)
+    smart_url = f"{config.MINI_APP_URL}?lang={lang}"
+    
+    # ២. បង្កើតប៊ូតុងម៉ឺនុយធំនៅខាងក្រោមបាតអេក្រង់ (Reply Keyboard)
+    # ជាទម្រង់ Native ធានាថាដំណើរការ ១០០% ការពារការគាំង និងបញ្ជូនភាសាបានត្រឹមត្រូវ
+    reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមចុចប៊ូតុងនៅទីនេះ...")
+    btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=smart_url))
+    
+    phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
+    reply_markup.row(btn_reply_app)
+    reply_markup.row(
+        KeyboardButton(phone_text, request_contact=True),
+        KeyboardButton(texts.get("send_loc_btn", "📍 Location"), request_location=True)
+    )
+    
+    # ៣. បង្កើតប៊ូតុងតូចភ្ជាប់នឹងសារ (Inline Keyboard ទុកជាជម្រើសទី២)
+    inline_markup = InlineKeyboardMarkup(row_width=1)
+    btn_inline_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=smart_url))
     btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
-    markup.add(btn_mini_app, btn_support)
+    inline_markup.add(btn_inline_app, btn_support)
     
     full_text = f"{texts['welcome']}\n\n{texts['choose']}"
-    bot.send_message(chat_id, full_text, reply_markup=markup, parse_mode="Markdown")
+    
+    # ធ្វើបច្ចុប្បន្នភាពប៊ូតុងធំនៅបាតអេក្រង់មុន រួចទើបផ្ញើសារម៉ឺនុយ
+    bot.send_message(chat_id, "✅ ប្រព័ន្ធត្រូវបានរៀបចំរួចរាល់ / System Ready", reply_markup=reply_markup)
+    bot.send_message(chat_id, full_text, reply_markup=inline_markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pickup_') or call.data.startswith('delivery_'))
 def handle_delivery_choice(call):
