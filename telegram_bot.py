@@ -191,6 +191,15 @@ def handle_delivery_choice(call):
     except Exception as e:
         print(f"⚠️ Delivery choice error for order {order_id}: {e}", file=sys.stderr)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('admin_reply_'))
+def handle_admin_reply_action(call):
+    parts = call.data.split('_')
+    if len(parts) >= 3:
+        target_chat_id = parts[2]
+        markup = telebot.types.ForceReply(selective=False)
+        bot.send_message(call.message.chat.id, f"👉 សូម Reply ត្រឡប់មកកាន់សារនេះ ដើម្បីផ្ញើទៅភ្ញៀវ `{target_chat_id}`\n*(វាយសាររបស់អ្នករួចចុចបញ្ជូន)*", reply_markup=markup)
+    bot.answer_callback_query(call.id)
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('admin_status_'))
 def handle_admin_status_update(call):
     parts = call.data.split('_', 3)
@@ -225,6 +234,10 @@ def handle_contact(message):
     try:
         requests.post(f"{config.API_BASE_URL}/users", json={"id": str(message.chat.id), "name": message.from_user.first_name, "phone": message.contact.phone_number}, timeout=15)
         bot.send_message(message.chat.id, texts["phone_saved"])
+        
+        # បញ្ជូនចូល Admin Group ភ្លាមៗ
+        admin_msg = f"📱 *អតិថិជនបញ្ជូនលេខទូរស័ព្ទ*\n👤 ឈ្មោះ: {message.from_user.first_name}\n📞 លេខ: `{message.contact.phone_number}`\n🆔 ID: `{message.chat.id}`"
+        bot.send_message("-1003740329904", admin_msg, parse_mode="Markdown")
     except Exception as e:
         print(f"⚠️ Contact save error for {message.chat.id}: {e}", file=sys.stderr)
 
@@ -236,6 +249,10 @@ def handle_location(message):
     lat, lon = message.location.latitude, message.location.longitude
     try:
         requests.post(f"{config.API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": f"{lat},{lon}"}, timeout=15)
+        
+        # បញ្ជូនទីតាំងចូល Admin Group ភ្លាមៗ
+        admin_msg = f"📍 *អតិថិជនបញ្ជូនទីតាំង*\n👤 ឈ្មោះ: {message.from_user.first_name}\n🗺 ចុចមើលផែនទី (Google Maps)\n🆔 ID: `{chat_id}`"
+        bot.send_message("-1003740329904", admin_msg, parse_mode="Markdown", disable_web_page_preview=True)
     except Exception as e:
         print(f"⚠️ Location save error for {chat_id}: {e}", file=sys.stderr)
         
@@ -280,14 +297,46 @@ def handle_payment_screenshot(message):
         print(f"Photo handling error for {message.chat.id}: {e}", file=sys.stderr)
 
 @bot.message_handler(func=lambda message: True, content_types=['text'])
-def block_text(message):
-    lang = get_user_lang(message.chat.id)
-    texts = LANG_DICT.get(lang, LANG_DICT["km"])
-    try:
-        bot.delete_message(message.chat.id, message.message_id)
-    except Exception:
-        pass
-    bot.send_message(message.chat.id, texts["no_text"])
+def handle_text_messages(message):
+    chat_id = str(message.chat.id)
+    
+    # 1. ត្រួតពិនិត្យមើលថាតើជាសាររបស់ Admin ឆ្លើយតបទៅភ្ញៀវចេញពីក្នុង Group ដែរឬទេ
+    if chat_id == "-1003740329904" or message.chat.id < 0:
+        if message.reply_to_message and message.reply_to_message.text and "👉 សូម Reply ត្រឡប់មកកាន់សារនេះ" in message.reply_to_message.text:
+            import re
+            match = re.search(r"`(\d+)`", message.reply_to_message.text)
+            if match:
+                try:
+                    # ប្រើ API ដើមដើម្បីបាញ់សារទៅភ្ញៀវ និងកត់ត្រាចូល CRM (ព្រមទាំងបិទ AI ១ម៉ោងពេល Admin ចាប់ផ្តើមឆាត)
+                    requests.post(f"{config.API_BASE_URL}/crm/reply", json={"chat_id": match.group(1), "user": "Admin", "text": message.text}, timeout=5)
+                    bot.send_message(chat_id, f"✅ បានបញ្ជូនសារទៅកាន់ភ្ញៀវសម្រេច!")
+                except Exception as e:
+                    bot.send_message(chat_id, f"❌ មានបញ្ហាក្នុងការបញ្ជូន: {e}")
+        return
+
+    # 2. បើជាសាររបស់ភ្ញៀវ -> បញ្ជូនទៅកាន់ Admin Group
+    user_name = message.from_user.first_name or "ភ្ញៀវ"
+    admin_group = "-1003740329904"
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("💬 ឆ្លើយតប (Reply)", callback_data=f"admin_reply_{chat_id}"))
+    bot.send_message(admin_group, f"💬 *សារពីភ្ញៀវ:* {user_name}\n🆔 ID: `{chat_id}`\n\n{message.text}", parse_mode="Markdown", reply_markup=markup)
+
+    try: requests.post(f"{config.API_BASE_URL}/crm/messages", json={"chat_id": chat_id, "user": user_name, "text": message.text}, timeout=5)
+    except: pass
+
+    # 3. ដំណើរការ AI Assistant
+    try: res = requests.get(f"{config.API_BASE_URL}/crm/ai_status/{chat_id}", timeout=5); ai_active = res.json().get("ai_active", True) if res.status_code == 200 else True
+    except: ai_active = True
+
+    if ai_active:
+        try:
+            gemini_key = os.getenv("GEMINI_API_KEY", getattr(config, "GEMINI_API_KEY", ""))
+            if gemini_key:
+                client = genai.Client(api_key=gemini_key)
+                response = client.models.generate_content(model='gemini-2.5-flash', contents=f"You are a polite customer service AI for Xiao Yue Xiao Chi. Keep answers brief. Always reply in the language the user writes. User message: {message.text}")
+                bot.reply_to(message, response.text)
+                bot.send_message(admin_group, f"🤖 *AI បានឆ្លើយតបទៅកាន់ {user_name}:*\n{response.text}", parse_mode="Markdown")
+        except Exception as e: print(f"AI error: {e}", file=sys.stderr)
 
 if __name__ == '__main__':
     print("🤖 This script is not meant to be run directly.", file=sys.stderr)

@@ -800,7 +800,7 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
         return None
 
 @app.post("/api/orders/receipt")
-def upload_receipt(data: OrderReceipt):
+def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
     # ស្វែងរកការកុម្ម៉ង់ដែលកំពុងរង់ចាំ (Pending Order)
     pending_order = None
     if USE_SUPABASE:
