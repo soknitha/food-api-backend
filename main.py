@@ -52,15 +52,14 @@ async def lifespan(app: FastAPI):
     def startup_tasks():
         try:
             download_fonts()
-            print("ℹ️  Attempting to remove webhook and start polling...")
+            print("ℹ️  Setting up Telegram Webhook...")
+            # Webhook គឺចាំបាច់បំផុតសម្រាប់ Railway ដើម្បីការពារកុំឱ្យ Server ដេកលក់ (Sleep) និងគាំង
             bot.remove_webhook()
-            import threading
-            # ប្រើ Long Polling ជាលក្ខណៈ Background Thread ធានាថា Bot ដើរ ១០០% មិនគាំង
-            polling_thread = threading.Thread(target=bot.infinity_polling, kwargs={"skip_pending": True}, daemon=True)
-            polling_thread.start()
-            print("✅ Bot is now running via Long Polling (Bulletproof mode)!")
+            time.sleep(1) # សម្រាកបន្តិចដើម្បីឱ្យ Telegram ផ្តាច់ Webhook ចាស់ចេញសិន
+            bot.set_webhook(url=config.WEBHOOK_URL)
+            print(f"✅ Webhook is securely set to: {config.WEBHOOK_URL}")
         except Exception as e:
-            print(f"⚠️ Warning: Could not setup startup tasks: {e}", file=sys.stderr)
+            print(f"⚠️ Webhook setup failed: {e}", file=sys.stderr)
             
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, startup_tasks)
@@ -68,10 +67,6 @@ async def lifespan(app: FastAPI):
     yield
     
     print("ℹ️  Application shutting down...")
-    try:
-        bot.stop_polling()
-    except Exception as e:
-        pass
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
 
