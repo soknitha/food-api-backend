@@ -558,9 +558,9 @@ def process_location_api(data: ProcessLocationReq):
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
         return R * c
         
-    # ទីតាំងហាងជាក់ស្តែងទំនើបបំផុត Xiao Yue Xiao Chi (HV46+P8 Phnom Penh)
-    STORE_LAT = 11.556100
-    STORE_LON = 104.928500
+    # ទីតាំងហាងជាក់ស្តែងទំនើបបំផុត Xiao Yue Xiao Chi (HV46+M8V Phnom Penh / 11.556750, 104.860800)
+    STORE_LAT = 11.556750
+    STORE_LON = 104.860800
     dist = calculate_distance(STORE_LAT, STORE_LON, data.lat, data.lon)
     
     if dist <= 1:
@@ -767,7 +767,7 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
         d.text((margin * 1.5, y), texts["receipt_items"], fill=text_main, font=font_bold)
         y += 50 * scale
         
-        for item in items_list:
+        for idx, item in enumerate(items_list):
             max_chars = 45 # អនុញ្ញាតឱ្យឈ្មោះមុខម្ហូបចេញវែងជាងមុន
             display_item = item if len(item) <= max_chars else item[:max_chars-3] + "..."
             d.text((margin * 1.5, y), f"{idx+1}.  {display_item}", fill=text_main, font=font_text)

@@ -14,7 +14,7 @@ class ReceiptDialog(QDialog):
     def __init__(self, order_id, order_time, customer, items, total, is_paid=False, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"វិក្កយបត្រ - {order_id}")
-        self.resize(450, 650) # ពង្រីកទំហំឱ្យសមស្របនឹងវិក្កយបត្រ 80mm
+        self.resize(520, 750) # ពង្រីកទំហំផ្ទាំងឱ្យធំទូលាយស្ទើរស្មើក្រដាស
         self.setStyleSheet("background-color: white;")
         layout = QVBoxLayout(self)
 
@@ -108,11 +108,11 @@ class ReceiptDialog(QDialog):
             
             table_rows += f"""
             <tr>
-                <td style="border: 1px solid #333; padding: 6px; text-align: center; white-space: nowrap;">{index}</td>
-                <td style="border: 1px solid #333; padding: 6px;">{name}</td>
-                <td style="border: 1px solid #333; padding: 6px; text-align: center; white-space: nowrap;">{qty}</td>
-                <td style="border: 1px solid #333; padding: 6px; text-align: right; white-space: nowrap;">${unit_price:.2f}</td>
-                <td style="border: 1px solid #333; padding: 6px; text-align: right; white-space: nowrap;">${total_price:.2f}</td>
+                <td style="border: 1px solid #333; padding: 8px; text-align: center; white-space: nowrap;">{index}</td>
+                <td style="border: 1px solid #333; padding: 8px;">{name}</td>
+                <td style="border: 1px solid #333; padding: 8px; text-align: center; white-space: nowrap;">{qty}</td>
+                <td style="border: 1px solid #333; padding: 8px; text-align: right; white-space: nowrap;">${unit_price:.2f}</td>
+                <td style="border: 1px solid #333; padding: 8px; text-align: right; white-space: nowrap;">${total_price:.2f}</td>
             </tr>
             """
             index += 1
@@ -121,8 +121,8 @@ class ReceiptDialog(QDialog):
         if discount_row:
             discount_html = f"""
             <tr>
-                <td colspan="4" style="border: 1px solid #333; padding: 6px; text-align: right; font-weight: bold;">កូប៉ុង / Discount:</td>
-                <td style="border: 1px solid #333; padding: 6px; text-align: right; color: #e74c3c;">{discount_row}</td>
+                <td colspan="4" style="border: 1px solid #333; padding: 8px; text-align: right; font-weight: bold;">កូប៉ុង / Discount:</td>
+                <td style="border: 1px solid #333; padding: 8px; text-align: right; color: #e74c3c;">{discount_row}</td>
             </tr>
             """
             
@@ -135,7 +135,7 @@ class ReceiptDialog(QDialog):
             """
             
         receipt_html = f"""
-        <div style="font-family: 'Khmer OS Battambang', Arial, sans-serif; padding: 10px;">
+        <div style="font-family: 'Khmer OS Battambang', Arial, sans-serif; padding: 2px;">
             <div style="text-align: center;">
                 <img src="file:///{logo_path}" width="100" />
                 <h2 style="margin: 10px 0 5px 0;">小月小吃</h2>
@@ -147,25 +147,25 @@ class ReceiptDialog(QDialog):
             <p style="margin: 2px 0;"><b>អតិថិជន៖</b> {self.customer}</p>
             <hr style="border: 1px dashed #ccc;">
             
-            <table style="width: 100%; margin: 0 auto; border-collapse: collapse; font-size: 13px; margin-bottom: 15px;">
+            <table style="width: 100%; margin: 0; border-collapse: collapse; font-size: 15px; margin-bottom: 15px;">
                 <thead style="background-color: #f8f9fa;">
                     <tr>
-                        <th colspan="5" style="border: 1px solid #333; padding: 8px; text-align: center; font-size: 14px; background-color: #e9ecef;">មុខម្ហូបដែលបានកុម្ម៉ង់</th>
+                        <th colspan="5" style="border: 1px solid #333; padding: 10px; text-align: center; font-size: 16px; background-color: #e9ecef;">មុខម្ហូបដែលបានកុម្ម៉ង់</th>
                     </tr>
                     <tr>
-                        <th style="border: 1px solid #333; padding: 6px; width: 1%; text-align: center; white-space: nowrap;">ល.រ</th>
-                        <th style="border: 1px solid #333; padding: 6px; width: auto; text-align: left;">ឈ្មោះមុខម្ហូប</th>
-                        <th style="border: 1px solid #333; padding: 6px; width: 1%; text-align: center; white-space: nowrap;">ចំនួន</th>
-                        <th style="border: 1px solid #333; padding: 6px; width: 1%; text-align: right; white-space: nowrap;">តម្លៃរាយ</th>
-                        <th style="border: 1px solid #333; padding: 6px; width: 1%; text-align: right; white-space: nowrap;">តម្លៃសរុប</th>
+                        <th style="border: 1px solid #333; padding: 8px; width: 1%; text-align: center; white-space: nowrap;">ល.រ</th>
+                        <th style="border: 1px solid #333; padding: 8px; width: auto; text-align: left;">ឈ្មោះមុខម្ហូប</th>
+                        <th style="border: 1px solid #333; padding: 8px; width: 1%; text-align: center; white-space: nowrap;">ចំនួន</th>
+                        <th style="border: 1px solid #333; padding: 8px; width: 1%; text-align: right; white-space: nowrap;">តម្លៃរាយ</th>
+                        <th style="border: 1px solid #333; padding: 8px; width: 1%; text-align: right; white-space: nowrap;">តម្លៃសរុប</th>
                     </tr>
                 </thead>
                 <tbody>
                     {table_rows}
                     {discount_html}
                     <tr>
-                        <td colspan="4" style="border: 1px solid #333; padding: 6px; text-align: right; font-weight: bold; font-size: 14px;">តម្លៃទូទាត់សរុប:</td>
-                        <td style="border: 1px solid #333; padding: 6px; text-align: right; font-weight: bold; color: #27ae60; font-size: 14px;">{self.total}</td>
+                        <td colspan="4" style="border: 1px solid #333; padding: 8px; text-align: right; font-weight: bold; font-size: 16px;">តម្លៃទូទាត់សរុប:</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: right; font-weight: bold; color: #27ae60; font-size: 16px;">{self.total}</td>
                     </tr>
                 </tbody>
             </table>
@@ -300,9 +300,18 @@ class OrdersPage(QWidget):
         layout.addLayout(search_layout)
 
         # បង្កើតតារាង (Table)
-        self.table = QTableWidget(0, 7)
+        self.table = QTableWidget(0, 75)
         self.table.setHorizontalHeaderLabels(["លេខកូដ", "ម៉ោងកុម្ម៉ង់", "ឈ្មោះអតិថិជន", "មុខម្ហូប", "តម្លៃសរុប", "ស្ថានភាព", "បង់ប្រាក់"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        
+        # កំណត់ទំហំជួរឈរ (Columns) នីមួយៗដោយផ្ទាល់ (គិតជា Pixels)
+        self.table.setColumnWidth(0, 90)   # ជួរទី 0: លេខកូដ
+        self.table.setColumnWidth(1, 150)  # ជួរទី 1: ម៉ោងកុម្ម៉ង់
+        self.table.setColumnWidth(2, 140)  # ជួរទី 2: ឈ្មោះអតិថិជន
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch) # ជួរទី 3: មុខម្ហូប (កំណត់ឱ្យលាតពេញទំហំដែលនៅសល់)
+        self.table.setColumnWidth(4, 90)   # ជួរទី 4: តម្លៃសរុប
+        self.table.setColumnWidth(5, 140)  # ជួរទី 5: ស្ថានភាព
+        self.table.setColumnWidth(6, 120)  # ជួរទី 6: បង់ប្រាក់
+        
         self.table.setStyleSheet("""
             QTableWidget { background-color: white; border-radius: 8px; }
             QHeaderView::section { background-color: #3498db; color: white; padding: 5px; font-weight: bold; }
