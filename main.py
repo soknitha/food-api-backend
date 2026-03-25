@@ -886,8 +886,23 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
         else:
             pending_order.update({"receipt_url": data.image_url, "status": "បានទូទាត់ប្រាក់ (Paid)"})
         
-        receipt_png = generate_receipt_image(pending_order, extracted_amount, lang=user_lang)
-        admin_msg = f"✅ *អតិថិជនបានទូទាត់ប្រាក់ជោគជ័យ!*\n🧾 វិក្កយបត្រ: `{pending_order['id']}`\n💰 បានទូទាត់: `${extracted_amount}`\n🏦 គណនី: {acc_name}\n🆔 Trx ID: `{trx_id}`"
+        # Update ភ្លាមៗទៅកាន់ Desktop App តាមរយៈ WebSocket
+        pending_order["status"] = "បានទូទាត់ប្រាក់ (Paid)"
+        pending_order["receipt_url"] = data.image_url
+        background_tasks.add_task(broadcast_ws_event, "UPDATE_ORDER", pending_order)
+        
+        admin_msg = (
+            f"✅ *ការទូទាត់ប្រាក់ជោគជ័យ!*\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🧾 *វិក្កយបត្រ:* `{pending_order['id']}`\n"
+            f"👤 *អតិថិជន:* {pending_order['customer']}\n"
+            f"🛒 *មុខម្ហូប:*\n{pending_order['items']}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💰 *បានទូទាត់:* `${extracted_amount:.2f}`\n"
+            f"🏦 *គណនី:* {acc_name}\n"
+            f"🆔 *Trx ID:* `{trx_id}`\n\n"
+            f"👉 *សូមជ្រើសរើសសកម្មភាពបន្ទាប់៖*"
+        )
         
         admin_group = app_config_db.get("kitchen_group_id", "-1003740329904")
         markup_dict = {
@@ -896,11 +911,13 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
                 [{"text": "✅ ប្រគល់ជោគជ័យ (បញ្ចប់)", "callback_data": f"admin_status_done_{pending_order['id']}"}]
             ]
         }
-        if receipt_png:
-            import json
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": admin_group, "caption": admin_msg, "parse_mode": "Markdown", "reply_markup": json.dumps(markup_dict)}, files={"photo": ("receipt.png", receipt_png, "image/png")})
-        else:
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": admin_group, "text": admin_msg, "parse_mode": "Markdown", "reply_markup": markup_dict})
+        
+        # បញ្ជូនការផ្ញើសារទៅ Background Task ដោយប្រើប្រាស់ Arguments ច្បាស់លាស់ដើម្បីការពារកំហុស (Closure Bug)
+        def notify_admin_bg(chat_id, text, markup):
+            try: requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown", "reply_markup": markup}, timeout=15)
+            except Exception as e: print(f"⚠️ Notification Error: {e}")
+            
+        background_tasks.add_task(notify_admin_bg, admin_group, admin_msg, markup_dict)
             
         return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True, "paid_amount": extracted_amount}
     else:
