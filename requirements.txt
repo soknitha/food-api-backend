@@ -1,10 +1,9 @@
 fastapi
-uvicorn
-python-multipart
+uvicorn[standard]
+pyTelegramBotAPI
 requests
 supabase
-pyTelegramBotAPI
-qrcode
-pillow
 google-genai
+pillow
+pydantic
 python-dotenv
