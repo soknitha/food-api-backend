@@ -1030,27 +1030,30 @@ def add_user(user: UserItem):
                     response = supabase.table("users").update(update_data).eq("id", user_id_str).execute()
                     return response.data[0] if response.data else None
             else:
+                insert_data = {
+                    "id": user_id_str,
+                    "name": user.name,
+                    "phone": user.phone,
+                    "points": 0,
+                    "chat_id": user_id_str
+                }
+                if user.location:
+                    insert_data["location"] = user.location
+                if user.language:
+                    insert_data["language"] = user.language
+                    
                 try:
-                    response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str, "location": getattr(user, "location", ""), "language": user.language or "km"}).execute()
+                    response = supabase.table("users").insert(insert_data).execute()
                     return response.data[0] if response.data else None
                 except Exception as e1:
-                    print(f"⚠️ Fallback user insert 1: {e1}")
+                    print(f"⚠️ Supabase Insert Error 1: {e1}")
                     try:
                         response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0, "chat_id": user_id_str}).execute()
                         return response.data[0] if response.data else None
                     except Exception as e2:
-                        print(f"⚠️ Fallback user insert 2: {e2}")
-                        try:
-                            response = supabase.table("users").insert({"id": user_id_str, "name": user.name, "phone": user.phone, "points": 0}).execute()
-                            return response.data[0] if response.data else None
-                        except Exception as e3:
-                            try:
-                                response = supabase.table("users").insert({"name": user.name, "phone": user.phone, "points": 0}).execute()
-                                return response.data[0] if response.data else None
-                            except Exception as e4:
-                                raise HTTPException(status_code=400, detail=f"Database Error: {str(e4)}")
+                        print(f"⚠️ Supabase Insert Error 2 (RLS): {e2}")
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Supabase Error: {str(e)}")
+            print(f"⚠️ Supabase Error: {str(e)}. Falling back to Memory DB.")
             
     for u in users_db:
         if str(u.get("id")) == user_id_str or str(u.get("chat_id")) == user_id_str:
