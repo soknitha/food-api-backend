@@ -32,7 +32,10 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app")
+
+# ប្រព័ន្ធធានាភាពត្រឹមត្រូវនៃ URL (Auto-Clean): កាត់ចោល https:// និង / ដែលលើសដើម្បីការពារការគាំង
+RAW_DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "web-production-88028.up.railway.app").strip()
+DOMAIN = RAW_DOMAIN.replace("https://", "").replace("http://", "").split("/")[0]
 PORT = int(os.getenv("PORT", 8000))
 
 # 3. Define Derived and Static Configuration
