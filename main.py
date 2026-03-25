@@ -84,19 +84,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------- Middleware: Auto-Detect Real Domain ---------------- #
-from starlette.middleware.base import BaseHTTPMiddleware
-class DomainFixerMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        host = request.headers.get("host")
-        if host and "127.0.0.1" not in host and "localhost" not in host:
-            scheme = request.headers.get("x-forwarded-proto", "https")
-            # Update global config dynamically so Telegram Bot knows the real URL
-            if getattr(config, "DOMAIN", "") != host:
-                config.DOMAIN = host
-                config.MINI_APP_URL = f"{scheme}://{host}/miniapp"
-        return await call_next(request)
-app.add_middleware(DomainFixerMiddleware)
 
 # ---------------- Real-time WebSockets Manager (ល្បឿនផ្លេកបន្ទោរ) ---------------- #
 class WSConnectionManager:
@@ -328,11 +315,7 @@ def read_root():
 
 @app.get("/init", response_class=HTMLResponse)
 def init_system(request: Request):
-    host = request.headers.get("host", "Unknown")
-    scheme = request.headers.get("x-forwarded-proto", "https")
-    config.DOMAIN = host
-    config.MINI_APP_URL = f"{scheme}://{host}/miniapp"
-    return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធបានចាប់យក Domain ដោយស្វ័យប្រវត្តិជោគជ័យ!</h2><h3 style='color:green;'>Domain បច្ចុប្បន្ន៖ {host}</h3><p>🔗 URL របស់ Mini App ឥឡូវគឺ៖ <b>{config.MINI_APP_URL}</b></p><br><h3>👉 សូមចូលទៅកាន់ Telegram រួចចុច <b style='color:blue;'>/start</b> ម្តងទៀត ដើម្បីបើកមុខម្ហូប។</h3></div>"
+    return f"<div style='text-align:center; margin-top:50px; font-family:Arial;'><h2>✅ ប្រព័ន្ធ Bot កំពុងដំណើរការយ៉ាងរលូន!</h2><h3 style='color:green;'>Domain បច្ចុប្បន្ន៖ {config.DOMAIN}</h3><p>🔗 URL របស់ Mini App គឺ៖ <b>{config.MINI_APP_URL}</b></p><br><h3>👉 សូមចូលទៅកាន់ Telegram រួចចុច <b style='color:blue;'>/start</b> ម្តងទៀត ដើម្បីបើកមុខម្ហូប។</h3></div>"
 
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
@@ -850,9 +833,16 @@ def upload_receipt(data: OrderReceipt):
             )
             import json
             result = json.loads(response.text)
-            extracted_amount = result.get("extracted_amount", 0)
-            acc_name = result.get("account_name", "N/A")
-            trx_id = result.get("trx_id", "N/A")
+            
+            # ប្រព័ន្ធការពារការគាំង (Robust Parsing): បំប្លែងទិន្នន័យ AI ទៅជាលេខសុទ្ធ
+            raw_amount = str(result.get("extracted_amount", "0")).replace('$', '').replace(',', '').strip()
+            try:
+                extracted_amount = float(raw_amount)
+            except ValueError:
+                extracted_amount = 0.0
+                
+            acc_name = str(result.get("account_name", "N/A"))
+            trx_id = str(result.get("trx_id", "N/A"))
             
             # ធ្វើការគណនាដោយកូដ Python ផ្ទាល់ដើម្បីធានាភាពជាក់លាក់ ១០០% ឥតខ្ចោះ
             if extracted_amount > 0 and extracted_amount >= expected_total:
