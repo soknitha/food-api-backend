@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from dotenv import load_dotenv
 
 # --------------------------------------------------------------------------
@@ -9,6 +10,9 @@ from dotenv import load_dotenv
 # It validates required environment variables and terminates the app if
 # any are missing, ensuring a fail-fast and predictable environment.
 # --------------------------------------------------------------------------
+
+# បិទសារព្រមាន (Warnings) របស់ python-dotenv កុំឱ្យលោតរំខានផ្ទាំង Console
+logging.getLogger("dotenv.main").setLevel(logging.ERROR)
 
 load_dotenv()
 

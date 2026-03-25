@@ -215,7 +215,7 @@ class MenuReorderItem(BaseModel):
 # ---------------- វចនានុក្រមភាសាសម្រាប់រាល់សាររបស់ Bot (Bot Localization) ---------------- #
 BOT_LANG_DICT = {
     "km": {
-        "checkout_initial": "🎉 *ទទួលបានការកុម្ម៉ង់បឋម!*\n\n🧾 លេខវិក្កយបត្រ: `{order_id}`\n\nតើលោកអ្នកចង់មកយកផ្ទាល់ ឬឱ្យហាងដឹកជូន?",
+        "checkout_initial": "🛒 *សូមពិនិត្យមើលកន្ត្រករបស់អ្នក (Cart Review)*\n\n🧾 វិក្កយបត្របណ្ដោះអាសន្ន: `{order_id}`\n\n📋 *បញ្ជីមុខម្ហូប:*\n{formatted_items}\n💰 *សរុបបណ្ដោះអាសន្ន:* *{total}*\n\n👇 តើលោកអ្នកចង់មកយកផ្ទាល់ ឬឱ្យហាងដឹកជូន?",
         "pickup_btn": "🏪 មកយកផ្ទាល់នៅហាង (Pickup)",
         "delivery_btn": "🛵 ហាងដឹកជូនផ្ទាល់ (Delivery)",
         "payment_text": "🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n🧾 *លេខវិក្កយបត្រ:* `{order_id}`\n👤 *អតិថិជន:* {customer}\n📱 *គណនី Telegram:* {chat_id}\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n\n🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*\n{formatted_items}\n💰 *សរុបប្រាក់ត្រូវបង់:* {total}\n\n💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA & ACLEDA ខាងក្រោម៖*\n• ឈ្មោះគណនី៖ {aba_name}\n• លេខគណនី៖ `{aba_number}`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។",
@@ -240,7 +240,7 @@ BOT_LANG_DICT = {
         "ai_error_amount": "ចំនួនទឹកប្រាក់មិនគ្រប់គ្រាន់ (បានបង់: ${paid:.2f} / ត្រូវបង់: ${expected:.2f})។"
     },
     "zh": {
-        "checkout_initial": "🎉 *收到初步订单！*\n\n🧾 订单编号: `{order_id}`\n\n您想自取还是让我们送货？",
+        "checkout_initial": "🛒 *请检查您的订单 (Review Order)*\n\n🧾 临时订单号: `{order_id}`\n\n📋 *购物车清单:*\n{formatted_items}\n💰 *小计:* *{total}*\n\n👇 您想自取还是让我们送货？",
         "pickup_btn": "🏪 到店自取 (Pickup)",
         "delivery_btn": "🛵 商店配送 (Delivery)",
         "payment_text": "🎉 *下单成功！*\n\n🧾 *订单编号:* `{order_id}`\n👤 *客户:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *电话:* {user_phone}\n📍 *位置:* {user_loc}\n\n🛒 *已点菜品:*\n{formatted_items}\n💰 *总计:* {total}\n\n💳 *请向以下 ABA 或 ACLEDA 账户付款：*\n• 账户名称：{aba_name}\n• 账号：`{aba_number}`\n\n📸 付款后，请在此发送付款截图，以便我们立即为您准备食物。",
@@ -265,7 +265,7 @@ BOT_LANG_DICT = {
         "ai_error_amount": "付款金额不足（已付: ${paid:.2f} / 应付: ${expected:.2f}）。"
     },
     "en": {
-        "checkout_initial": "🎉 *Preliminary Order Received!*\n\n🧾 Invoice No: `{order_id}`\n\nWould you like to pick it up or have it delivered?",
+        "checkout_initial": "🛒 *Please Review Your Order*\n\n🧾 Temp Invoice No: `{order_id}`\n\n📋 *Cart Items:*\n{formatted_items}\n💰 *Subtotal:* *{total}*\n\n👇 Would you like to pick it up or have it delivered?",
         "pickup_btn": "🏪 Store Pickup",
         "delivery_btn": "🛵 Store Delivery",
         "payment_text": "🎉 *Order Placed Successfully!*\n\n🧾 *Invoice No:* `{order_id}`\n👤 *Customer:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *Phone:* {user_phone}\n📍 *Location:* {user_loc}\n\n🛒 *Ordered Items:*\n{formatted_items}\n💰 *Total Due:* {total}\n\n💳 *Please make a payment to the ABA & ACLEDA account below:*\n• Account Name: {aba_name}\n• Account Number: `{aba_number}`\n\n📸 After payment, please send the receipt screenshot here so we can prepare your food immediately.",
@@ -390,7 +390,16 @@ def create_order(order: OrderCreate, background_tasks: BackgroundTasks):
     # បាញ់សារទៅ Group ផ្ទះបាយ
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
-        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{new_order['items'].replace(', ', '%0A')}"
+        raw_items = new_order["items"].split(",")
+        formatted_k = ""
+        for itm in raw_items:
+            itm_str = itm.strip()
+            if itm_str:
+                if "🎁" in itm_str or "🛵" in itm_str:
+                    formatted_k += f"  {itm_str}\n"
+                else:
+                    formatted_k += f"  ☑️ {itm_str}\n"
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
         
     background_tasks.add_task(broadcast_ws_event, "NEW_ORDER", new_order)
@@ -438,7 +447,18 @@ def miniapp_checkout(order: OrderCreate, background_tasks: BackgroundTasks):
                 [{"text": texts["delivery_btn"], "callback_data": f"delivery_{new_order['id']}"}]
             ]
         }
-        msg_text = texts["checkout_initial"].format(order_id=new_order['id'])
+        
+        raw_items = new_order["items"].split(",")
+        formatted_items = ""
+        for itm in raw_items:
+            itm_str = itm.strip()
+            if itm_str:
+                if "🎁" in itm_str or "🛵" in itm_str:
+                    formatted_items += f"  {itm_str}\n"
+                else:
+                    formatted_items += f"  🔸 {itm_str}\n"
+                    
+        msg_text = texts["checkout_initial"].format(order_id=new_order['id'], formatted_items=formatted_items, total=new_order['total'])
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={
             "chat_id": order.chat_id,
             "text": msg_text,
@@ -487,7 +507,16 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
 
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
-        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Mini App)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n🛒 *មុខម្ហូប:*\n{order['items'].replace(', ', '%0A')}"
+        raw_items_k = order["items"].split(",")
+        formatted_k = ""
+        for itm in raw_items_k:
+            itm_str = itm.strip()
+            if itm_str:
+                if "🎁" in itm_str or "🛵" in itm_str:
+                    formatted_k += f"  {itm_str}\n"
+                else:
+                    formatted_k += f"  ☑️ {itm_str}\n"
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (រង់ចាំការបង់ប្រាក់)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
 
     user_phone = "មិនមាន"
@@ -505,9 +534,13 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
 
     raw_items = order["items"].split(",")
     formatted_items = ""
-    for idx, itm in enumerate(raw_items):
-        if itm.strip():
-            formatted_items += f"{idx + 1}. {itm.strip()}\n"
+    for itm in raw_items:
+        itm_str = itm.strip()
+        if itm_str:
+            if "🎁" in itm_str or "🛵" in itm_str:
+                formatted_items += f"  {itm_str}\n"
+            else:
+                formatted_items += f"  ✅ {itm_str}\n"
 
     lang = get_user_lang_from_db(chat_id)
     texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
@@ -909,9 +942,13 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
         # រៀបចំមុខម្ហូបជាលេខរៀងចុះបន្ទាត់ (Numbered List) ឱ្យផ្ទះបាយមើលងាយស្រួល
         raw_items = pending_order['items'].split(",")
         formatted_kitchen_items = ""
-        for idx, itm in enumerate(raw_items):
-            if itm.strip():
-                formatted_kitchen_items += f"{idx + 1}. {itm.strip()}\n"
+        for itm in raw_items:
+            itm_str = itm.strip()
+            if itm_str:
+                if "🎁" in itm_str or "🛵" in itm_str:
+                    formatted_kitchen_items += f"  {itm_str}\n"
+                else:
+                    formatted_kitchen_items += f"  ☑️ {itm_str}\n"
                 
         admin_msg = (
             f"✅ *ការទូទាត់ប្រាក់ជោគជ័យ!*\n"
@@ -1322,5 +1359,36 @@ def broadcast_message(req: BroadcastRequest):
 
 if __name__ == "__main__":
     import uvicorn
+    import socket
+    import subprocess
+    import os
+    import time
+
+    # មុខងារកម្រិតខ្ពស់: សម្លាប់កម្មវិធីចាស់ (Zombie Process) ដែលជាប់គាំងលើ Port នេះចោលដោយស្វ័យប្រវត្តិ ដើម្បីរក្សា Port លំនាំដើមជានិច្ច
+    def release_port(port):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("0.0.0.0", port))
+            return # Port ទំនេរធម្មតា
+        except OSError:
+            print(f"⚠️ Port {port} កំពុងជាប់គាំង! ប្រព័ន្ធកំពុងដំណើរការសម្អាត (Force Kill) ដោយស្វ័យប្រវត្តិ...")
+            try:
+                if os.name == 'nt': # សម្រាប់ Windows
+                    out = subprocess.check_output(f"netstat -ano | findstr :{port}", shell=True).decode()
+                    for line in out.strip().split('\n'):
+                        parts = line.strip().split()
+                        if len(parts) >= 5 and parts[1].endswith(f":{port}") and "LISTENING" in parts:
+                            pid = parts[-1]
+                            if pid != "0": os.system(f"taskkill /F /PID {pid} >nul 2>&1")
+                else: # សម្រាប់ Linux / macOS
+                    out = subprocess.check_output(f"lsof -t -i:{port}", shell=True).decode()
+                    for pid in out.strip().split('\n'):
+                        if pid: os.system(f"kill -9 {pid}")
+                time.sleep(1)
+                print(f"✅ បានសម្អាត Process ចាស់ដោយជោគជ័យ! Port {port} ត្រលប់មកទំនេរវិញហើយ។")
+            except Exception: pass
+
+    release_port(config.PORT)
+
     print(f"Starting server on http://0.0.0.0:{config.PORT}")
     uvicorn.run(app, host="0.0.0.0", port=config.PORT)

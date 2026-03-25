@@ -77,6 +77,20 @@ LANG_DICT = {
     }
 }
 
+def get_main_reply_markup(lang):
+    """ មុខងារសម្រាប់ហៅប៊ូតុងទាំង ៣ មកវិញជានិច្ច (ការពារកុំឱ្យជាប់គាំង) """
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
+    app_url = f"{config.MINI_APP_URL}?lang={lang}"
+    reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមចុចប៊ូតុងនៅទីនេះ...")
+    btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
+    phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
+    reply_markup.row(btn_reply_app)
+    reply_markup.row(
+        KeyboardButton(phone_text, request_contact=True),
+        KeyboardButton(texts.get("send_loc_btn", "📍 Location"), request_location=True)
+    )
+    return reply_markup
+
 def get_user_lang(chat_id):
     """ Fetches user language from the backend, with a local cache. """
     if chat_id in user_langs:
@@ -144,17 +158,8 @@ def show_main_menu(chat_id, lang="km"):
     # ១. បញ្ចូលកន្ទុយ ?lang= ទៅក្នុង URL វិញ ដើម្បីឱ្យ Mini App ចាប់ភាសាបានភ្លាមៗ (Smart Language V2)
     app_url = f"{config.MINI_APP_URL}?lang={lang}"
     
-    # ២. បង្កើតប៊ូតុងម៉ឺនុយធំនៅខាងក្រោមបាតអេក្រង់ (Reply Keyboard)
-    # ជាទម្រង់ Native ធានាថាដំណើរការ ១០០% ការពារការគាំង និងបញ្ជូនភាសាបានត្រឹមត្រូវ
-    reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមចុចប៊ូតុងនៅទីនេះ...")
-    btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
-    
-    phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
-    reply_markup.row(btn_reply_app)
-    reply_markup.row(
-        KeyboardButton(phone_text, request_contact=True),
-        KeyboardButton(texts.get("send_loc_btn", "📍 Location"), request_location=True)
-    )
+    # ២. ហៅមុខងារបង្កើតប៊ូតុងម៉ឺនុយធំនៅខាងក្រោមបាតអេក្រង់
+    reply_markup = get_main_reply_markup(lang)
     
     # ៣. បង្កើតប៊ូតុងតូចភ្ជាប់នឹងសារ (Inline Keyboard ទុកជាជម្រើសទី២)
     inline_markup = InlineKeyboardMarkup(row_width=1)
@@ -258,10 +263,11 @@ def handle_location(message):
         
     try:
         res = requests.post(f"{config.API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=20)
+        reply_markup = get_main_reply_markup(lang)
         if res.status_code == 200 and "ok" in res.json().get("status", ""):
-            bot.send_message(chat_id, texts["loc_received"])
+            bot.send_message(chat_id, texts["loc_received"], reply_markup=reply_markup)
         else:
-            bot.send_message(chat_id, texts["loc_saved"])
+            bot.send_message(chat_id, texts["loc_saved"], reply_markup=reply_markup)
     except Exception as e:
         print(f"⚠️ Process location API error for {chat_id}: {e}", file=sys.stderr)
 
@@ -288,6 +294,9 @@ def handle_payment_screenshot(message):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton(support_btn_text, url="https://t.me/XiaoYueXiaoChi"))
             bot.reply_to(message, reply_text, parse_mode="Markdown", reply_markup=markup)
+            
+            # បង្ហាញប៊ូតុងទាំង ៣ ឡើងវិញដោយប្រើសារណែនាំត្រឹមត្រូវជាជាង "✅"
+            bot.send_message(message.chat.id, "👇 លោកអ្នកអាចបន្តការកុម្ម៉ង់ផ្សេងៗទៀតនៅខាងក្រោម៖", reply_markup=get_main_reply_markup(lang))
         else:
             reason = response.json().get("reason", texts["receipt_fail"])
             bot.reply_to(message, reason, parse_mode="Markdown")
