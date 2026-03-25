@@ -526,20 +526,35 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
         aba_number=aba_number
     )
     
+    # បង្កើតប៊ូតុងម៉ឺនុយ (Reply Keyboard) ជា JSON ផ្ទាល់ដើម្បីភ្ជាប់ទៅជាមួយវិក្កយបត្រ (Smart Method)
+    import json
+    app_url = f"{config.MINI_APP_URL}?lang={lang}"
+    phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
+    loc_text = texts.get("send_loc_btn", "📍 Location")
+    reply_markup_dict = {
+        "keyboard": [
+            [{"text": texts.get("order_app", "📱 កុម្ម៉ង់អាហារ (Order Food)"), "web_app": {"url": app_url}}],
+            [{"text": phone_text, "request_contact": True}, {"text": loc_text, "request_location": True}]
+        ],
+        "resize_keyboard": True,
+        "input_field_placeholder": "👇 សូមចុចប៊ូតុងនៅទីនេះ..."
+    }
+    rm_json = json.dumps(reply_markup_dict)
+
     qr_path = os.path.join(os.path.dirname(__file__), "aba_qr.jpg")
     if os.path.exists(qr_path):
         with open(qr_path, "rb") as f:
             qr_bytes = f.read()
         
-        # ធានាថារូបភាពត្រូវបានផ្ញើភ្ជាប់ជាមួយគ្នា ១០០%
-        res_user = requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        # បង្កប់ Keyboard ទៅក្នុងសារវិក្កយបត្រដោយផ្ទាល់ ដើម្បីកុំឱ្យផ្ញើសាររំខានច្រើនតង់
+        res_user = requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown', 'reply_markup': rm_json}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
         if res_user.status_code != 200:
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown', 'reply_markup': reply_markup_dict})
             
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': app_config_db.get("kitchen_group_id", "-1003740329904"), 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
     else:
         # បម្រុងទុក (Fallback)៖ បើសិនជាបាត់រូប aba_qr.jpg ក៏វានៅតែបាញ់អត្ថបទវិក្កយបត្រទៅដែរ
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown', 'reply_markup': reply_markup_dict})
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': app_config_db.get("kitchen_group_id", "-1003740329904"), 'text': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'})
 
 @app.post("/api/orders/finalize")
@@ -891,12 +906,19 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
         pending_order["receipt_url"] = data.image_url
         background_tasks.add_task(broadcast_ws_event, "UPDATE_ORDER", pending_order)
         
+        # រៀបចំមុខម្ហូបជាលេខរៀងចុះបន្ទាត់ (Numbered List) ឱ្យផ្ទះបាយមើលងាយស្រួល
+        raw_items = pending_order['items'].split(",")
+        formatted_kitchen_items = ""
+        for idx, itm in enumerate(raw_items):
+            if itm.strip():
+                formatted_kitchen_items += f"{idx + 1}. {itm.strip()}\n"
+                
         admin_msg = (
             f"✅ *ការទូទាត់ប្រាក់ជោគជ័យ!*\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"🧾 *វិក្កយបត្រ:* `{pending_order['id']}`\n"
             f"👤 *អតិថិជន:* {pending_order['customer']}\n"
-            f"🛒 *មុខម្ហូប:*\n{pending_order['items']}\n"
+            f"🛒 *មុខម្ហូប:*\n{formatted_kitchen_items}"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"💰 *បានទូទាត់:* `${extracted_amount:.2f}`\n"
             f"🏦 *គណនី:* {acc_name}\n"
