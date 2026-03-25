@@ -21,19 +21,25 @@ import config
 # បិទរាល់សារព្រមាន (Warnings) ទាំងអស់កុំឱ្យលោតរំខាន
 warnings.filterwarnings("ignore")
 
-def download_khmer_font():
-    """ ទាញយក Font ខ្មែរដោយស្វ័យប្រវត្តិដើម្បីឱ្យវិក្កយបត្រចេញអក្សរខ្មែរបាន ១០០% """
+def download_fonts():
+    """ ទាញយក Font ខ្មែរ និង ចិន ដោយស្វ័យប្រវត្តិដើម្បីឱ្យវិក្កយបត្រចេញអក្សរបាន ១០០% គ្រប់ភាសា """
     os.makedirs(os.path.dirname(config.KHMER_FONT_PATH), exist_ok=True)
-    if not os.path.exists(config.KHMER_FONT_PATH):
-        print("📥 កំពុងទាញយក Font ខ្មែរ Noto Sans Khmer ដ៏ស្រស់ស្អាត សម្រាប់វិក្កយបត្រ...")
-        try:
-            url = "https://github.com/google/fonts/raw/main/ofl/notosanskhmer/NotoSansKhmer-Regular.ttf"
-            res = requests.get(url, timeout=10)
-            with open(config.KHMER_FONT_PATH, "wb") as f:
-                f.write(res.content)
-            print("✅ ទាញយក Font ខ្មែរបានជោគជ័យ!")
-        except Exception as e:
-            print(f"⚠️ មិនអាចទាញយក Font ខ្មែរបានទេ: {e}")
+    zh_font_path = config.KHMER_FONT_PATH.replace("Khmer", "SC")
+    
+    fonts_to_download = {
+        config.KHMER_FONT_PATH: "https://github.com/google/fonts/raw/main/ofl/notosanskhmer/NotoSansKhmer-Regular.ttf",
+        zh_font_path: "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
+    }
+    
+    for path, url in fonts_to_download.items():
+        if not os.path.exists(path):
+            print(f"📥 កំពុងទាញយក Font សម្រាប់វិក្កយបត្រ: {os.path.basename(path)}...")
+            try:
+                res = requests.get(url, timeout=15)
+                with open(path, "wb") as f:
+                    f.write(res.content)
+            except Exception as e:
+                print(f"⚠️ មិនអាចទាញយក Font បានទេ: {e}")
 
 # ---------------- Lifespan Manager for Telegram Bot Webhook ---------------- #
 @asynccontextmanager
@@ -44,7 +50,7 @@ async def lifespan(app: FastAPI):
     """
     def startup_tasks():
         try:
-            download_khmer_font()
+            download_fonts()
             print("ℹ️  Attempting to remove webhook and start polling...")
             bot.remove_webhook()
             import threading
@@ -523,8 +529,12 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
         with open(qr_path, "rb") as f:
             qr_bytes = f.read()
         
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': "@XiaoYueXiaoChi", 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        # ធានាថារូបភាពត្រូវបានផ្ញើភ្ជាប់ជាមួយគ្នា ១០០%
+        res_user = requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        if res_user.status_code != 200:
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
+            
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': app_config_db.get("kitchen_group_id", "@XiaoYueXiaoChi"), 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
     else:
         # បម្រុងទុក (Fallback)៖ បើសិនជាបាត់រូប aba_qr.jpg ក៏វានៅតែបាញ់អត្ថបទវិក្កយបត្រទៅដែរ
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
@@ -669,19 +679,22 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
         texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
         items_list = [item.strip() for item in order_data["items"].split(",") if item.strip()]
         
-        width = 420
-        base_height = 480
-        height = base_height + (len(items_list) * 30)
+        width = 480
+        base_height = 550
+        height = base_height + (len(items_list) * 40)
         
         img = Image.new('RGB', (width, height), color=(255, 255, 255))
         d = ImageDraw.Draw(img)
         
+        zh_font_path = config.KHMER_FONT_PATH.replace("Khmer", "SC")
+        active_font_path = zh_font_path if lang == "zh" else config.KHMER_FONT_PATH
+        if not os.path.exists(active_font_path):
+            active_font_path = config.KHMER_FONT_PATH
+        
         try:
-            if not os.path.exists(config.KHMER_FONT_PATH):
-                raise FileNotFoundError(f"Font file not found at {config.KHMER_FONT_PATH}")
-            font_title = ImageFont.truetype(config.KHMER_FONT_PATH, 26)
-            font_bold = ImageFont.truetype(config.KHMER_FONT_PATH, 20)
-            font_text = ImageFont.truetype(config.KHMER_FONT_PATH, 18)
+            font_title = ImageFont.truetype(active_font_path, 32)
+            font_bold = ImageFont.truetype(active_font_path, 24)
+            font_text = ImageFont.truetype(active_font_path, 20)
         except Exception as e:
             print(f"⚠️  Font Error: {e}. Falling back to default font.", file=sys.stderr)
             font_title = font_text = font_bold = ImageFont.load_default()
@@ -695,59 +708,59 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
             d.text(((width - w) / 2, y_pos), text_val, fill=fill, font=f_type)
 
         def draw_dashed(y_pos):
-            d.text((20, y_pos), "-" * 55, fill=(100,100,100), font=font_text)
+            d.text((20, y_pos), "-" * 65, fill=(100,100,100), font=font_text)
 
         # --- Header ---
-        y = 25
+        y = 35
         draw_centered(y, texts["receipt_shop"], font_title)
-        y += 45
+        y += 50
         draw_centered(y, texts["receipt_title"], font_bold)
-        y += 35
+        y += 45
         draw_dashed(y)
-        y += 20
+        y += 25
 
         # --- Info ---
-        d.text((20, y), f"{texts['receipt_invoice']} {order_data['id']}", fill=(0,0,0), font=font_text)
-        y += 30
-        d.text((20, y), f"{texts['receipt_date']} {datetime.now().strftime('%d/%m/%Y %H:%M')}", fill=(0,0,0), font=font_text)
-        y += 30
-        d.text((20, y), f"{texts['receipt_customer']} {order_data['customer']}", fill=(0,0,0), font=font_text)
-        y += 30
+        d.text((30, y), f"{texts['receipt_invoice']} {order_data['id']}", fill=(0,0,0), font=font_text)
+        y += 35
+        d.text((30, y), f"{texts['receipt_date']} {datetime.now().strftime('%d/%m/%Y %H:%M')}", fill=(0,0,0), font=font_text)
+        y += 35
+        d.text((30, y), f"{texts['receipt_customer']} {order_data['customer']}", fill=(0,0,0), font=font_text)
+        y += 35
         draw_dashed(y)
-        y += 20
+        y += 25
         
         # --- Items ---
-        d.text((20, y), texts["receipt_items"], fill=(0,0,0), font=font_bold)
-        y += 30
+        d.text((30, y), texts["receipt_items"], fill=(0,0,0), font=font_bold)
+        y += 40
         for item in items_list:
-            max_chars = 35
+            max_chars = 40
             display_item = item if len(item) <= max_chars else item[:max_chars-3] + "..."
-            d.text((20, y), display_item, fill=(0,0,0), font=font_text)
-            y += 30
+            d.text((30, y), display_item, fill=(0,0,0), font=font_text)
+            y += 35
             
         draw_dashed(y)
-        y += 20
+        y += 25
         
         # --- Totals ---
-        d.text((20, y), texts["receipt_total"], fill=(0,0,0), font=font_bold)
+        d.text((30, y), texts["receipt_total"], fill=(0,0,0), font=font_bold)
         tot_val = str(order_data['total'])
         try: w = d.textbbox((0, 0), tot_val, font=font_bold)[2]
         except AttributeError: w = d.textlength(tot_val, font=font_bold)
-        d.text((width - 20 - w, y), tot_val, fill=(0,0,0), font=font_bold)
-        y += 35
+        d.text((width - 30 - w, y), tot_val, fill=(0,0,0), font=font_bold)
+        y += 45
 
-        d.text((20, y), texts["receipt_paid"], fill=(0,0,0), font=font_bold)
+        d.text((30, y), texts["receipt_paid"], fill=(0,0,0), font=font_bold)
         paid_val = f"${float(amount_paid):.2f}"
         try: w = d.textbbox((0, 0), paid_val, font=font_bold)[2]
         except AttributeError: w = d.textlength(paid_val, font=font_bold)
-        d.text((width - 20 - w, y), paid_val, fill=(39, 174, 96), font=font_bold)
-        y += 45
+        d.text((width - 30 - w, y), paid_val, fill=(39, 174, 96), font=font_bold)
+        y += 55
         
         draw_dashed(y)
-        y += 20
+        y += 30
         
         draw_centered(y, texts["receipt_footer"], font_bold, fill=(39, 174, 96))
-        y += 35
+        y += 40
         draw_centered(y, texts["receipt_thanks"], font_text)
         
         bio = io.BytesIO()

@@ -33,8 +33,15 @@ LANG_DICT = {
         "order_app": "📱 កុម្ម៉ង់អាហារ (Order Food)",
         "support": "🎧 ផ្នែកបម្រើអតិថិជន (Support)",
         "no_text": "⚠️ សូមអភ័យទោស ប្រព័ន្ធរបស់យើងប្រើប្រាស់តែប៊ូតុងបញ្ជាប៉ុណ្ណោះ។ សូមចុច /start ដើម្បីបើកម៉ឺនុយឡើងវិញ។",
-        "receipt_ok": "✅ Successfully Received!\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
-        "receipt_fail": "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។"
+        "receipt_ok": "✅ ទទួលបានជោគជ័យ!\nវិក្កយបត្ររបស់អ្នកត្រូវបានបញ្ជូនទៅកាន់អ្នកលក់។ សូមរង់ចាំបន្តិច អាហាររបស់អ្នកនឹងរៀបចំជូនភ្លាមៗ។ 🛵",
+        "receipt_fail": "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។",
+        "ask_location": "📍 *សូមផ្ញើទីតាំងរបស់អ្នក* ដើម្បីឱ្យប្រព័ន្ធគណនាថ្លៃដឹកជញ្ជូន។",
+        "loc_received": "✅ ទទួលបានទីតាំង! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រ...",
+        "phone_saved": "✅ លេខទូរស័ព្ទត្រូវបានរក្សាទុក!",
+        "loc_saved": "✅ ទីតាំងត្រូវបានរក្សាទុក!",
+        "processing": "⏳ កំពុងដំណើរការ...",
+        "error": "❌ មានបញ្ហាក្នុងការដំណើរការរូបភាព។",
+        "send_loc_btn": "📍 ផ្ញើទីតាំងរបស់ខ្ញុំ"
     },
     "zh": {
         "welcome": "🌟 *欢迎来到 小月小吃！*\n\n我们为您提供最卫生、高标准的美味佳肴。请享受我们便捷的数字化点餐服务。",
@@ -42,8 +49,15 @@ LANG_DICT = {
         "order_app": "📱 小月小吃的菜单",
         "support": "🎧 客服支持 (Support)",
         "no_text": "⚠️ 抱歉，本系统仅支持按钮操作。请点击 /start 重新打开菜单。",
-        "receipt_ok": "✅ Successfully Received!\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
-        "receipt_fail": "⚠️ 您当前没有待付款的订单，或您已经发送过凭证了。"
+        "receipt_ok": "✅ 接收成功！\n您的付款截图已发送给商家。请稍候，您的食物马上就好。 🛵",
+        "receipt_fail": "⚠️ 您当前没有待付款的订单，或您已经发送过凭证了。",
+        "ask_location": "📍 *请发送您的位置* 以便系统计算运费。",
+        "loc_received": "✅ 位置已收到！系统正在准备您的账单...",
+        "phone_saved": "✅ 电话号码已保存！",
+        "loc_saved": "✅ 位置已保存！",
+        "processing": "⏳ 处理中...",
+        "error": "❌ 处理图像时出错。",
+        "send_loc_btn": "📍 发送我的位置"
     },
     "en": {
         "welcome": "🌟 *Welcome to Xiao Yue Xiao Chi!*\n\nWe provide a delicious culinary experience with the highest standards of hygiene and quality. Enjoy our seamless digital ordering service.",
@@ -52,7 +66,14 @@ LANG_DICT = {
         "support": "🎧 Customer Support",
         "no_text": "⚠️ Sorry, our system only accepts button interactions. Please click /start to reopen the menu.",
         "receipt_ok": "✅ Successfully Received!\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
-        "receipt_fail": "⚠️ You have no pending orders awaiting payment, or you've already sent a receipt."
+        "receipt_fail": "⚠️ You have no pending orders awaiting payment, or you've already sent a receipt.",
+        "ask_location": "📍 *Please send your location* for our system to calculate the delivery fee.",
+        "loc_received": "✅ Location received! The system is preparing your bill...",
+        "phone_saved": "✅ Phone number saved!",
+        "loc_saved": "✅ Location saved!",
+        "processing": "⏳ Processing...",
+        "error": "❌ An error occurred while processing the image.",
+        "send_loc_btn": "📍 Send My Location"
     }
 }
 
@@ -129,9 +150,11 @@ def show_main_menu(chat_id, lang="km"):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pickup_') or call.data.startswith('delivery_'))
 def handle_delivery_choice(call):
-    bot.answer_callback_query(call.id, text="⏳ កំពុងដំណើរការ... / Processing...")
-    action, order_id = call.data.split('_', 1)
     chat_id = str(call.message.chat.id)
+    lang = get_user_lang(chat_id)
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
+    bot.answer_callback_query(call.id, text=texts["processing"])
+    action, order_id = call.data.split('_', 1)
     
     try:
         if action == "pickup":
@@ -139,8 +162,8 @@ def handle_delivery_choice(call):
         elif action == "delivery":
             requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=20)
             reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-            reply_markup.add(KeyboardButton("📍 Send My Location", request_location=True))
-            bot.send_message(chat_id, "📍 *Please send your location* for our system to calculate the delivery fee.", reply_markup=reply_markup, parse_mode="Markdown")
+            reply_markup.add(KeyboardButton(texts["send_loc_btn"], request_location=True))
+            bot.send_message(chat_id, texts["ask_location"], reply_markup=reply_markup, parse_mode="Markdown")
         
         bot.delete_message(chat_id, call.message.message_id)
     except Exception as e:
@@ -148,15 +171,19 @@ def handle_delivery_choice(call):
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
+    lang = get_user_lang(str(message.chat.id))
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
     try:
         requests.post(f"{config.API_BASE_URL}/users", json={"id": str(message.chat.id), "name": message.from_user.first_name, "phone": message.contact.phone_number}, timeout=15)
-        bot.send_message(message.chat.id, "✅ Phone number saved!")
+        bot.send_message(message.chat.id, texts["phone_saved"])
     except Exception as e:
         print(f"⚠️ Contact save error for {message.chat.id}: {e}", file=sys.stderr)
 
 @bot.message_handler(content_types=['location'])
 def handle_location(message):
     chat_id = str(message.chat.id)
+    lang = get_user_lang(chat_id)
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
     lat, lon = message.location.latitude, message.location.longitude
     try:
         requests.post(f"{config.API_BASE_URL}/users", json={"id": chat_id, "name": message.from_user.first_name, "location": f"{lat},{lon}"}, timeout=15)
@@ -166,9 +193,9 @@ def handle_location(message):
     try:
         res = requests.post(f"{config.API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=20)
         if res.status_code == 200 and "ok" in res.json().get("status", ""):
-            bot.send_message(chat_id, "✅ Location received! The system is preparing your bill...")
+            bot.send_message(chat_id, texts["loc_received"])
         else:
-            bot.send_message(chat_id, "✅ Location saved!")
+            bot.send_message(chat_id, texts["loc_saved"])
     except Exception as e:
         print(f"⚠️ Process location API error for {chat_id}: {e}", file=sys.stderr)
 
@@ -189,7 +216,7 @@ def handle_payment_screenshot(message):
             bot.reply_to(message, f"⚠️ {reason}")
 
     except Exception as e:
-        bot.reply_to(message, "❌ An error occurred while processing the image.")
+        bot.reply_to(message, texts["error"])
         print(f"Photo handling error for {message.chat.id}: {e}", file=sys.stderr)
 
 @bot.message_handler(func=lambda message: True, content_types=['text'])

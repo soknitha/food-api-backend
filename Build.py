@@ -32,10 +32,14 @@ def build_app():
     ]
 
     # បន្ថែមឯកសារផ្សេងៗ ប្រសិនបើវាពិតជាមាននៅក្នុង Folder
-    if os.path.exists('app_icon.ico'): pyinstaller_args.append('--icon=app_icon.ico')
-    if os.path.exists('logo.png'): pyinstaller_args.append('--add-data=logo.png;.')
-    if os.path.exists('notification.wav'): pyinstaller_args.append('--add-data=notification.wav;.')
-    if os.path.exists('aba_qr.jpg'): pyinstaller_args.append('--add-data=aba_qr.jpg;.')
+    if os.path.exists('app_icon.ico'):
+        pyinstaller_args.append('--icon=app_icon.ico')
+    if os.path.exists('logo.png'):
+        pyinstaller_args.append('--add-data=logo.png;.')
+    if os.path.exists('notification.wav'):
+        pyinstaller_args.append('--add-data=notification.wav;.')
+    if os.path.exists('aba_qr.jpg'):
+        pyinstaller_args.append('--add-data=aba_qr.jpg;.')
 
     # ដំណើរការ PyInstaller
     PyInstaller.__main__.run(pyinstaller_args)
