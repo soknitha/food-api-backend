@@ -33,7 +33,7 @@ LANG_DICT = {
         "order_app": "📱 កុម្ម៉ង់អាហារ (Order Food)",
         "support": "🎧 ផ្នែកបម្រើអតិថិជន (Support)",
         "no_text": "⚠️ សូមអភ័យទោស ប្រព័ន្ធរបស់យើងប្រើប្រាស់តែប៊ូតុងបញ្ជាប៉ុណ្ណោះ។ សូមចុច /start ដើម្បីបើកម៉ឺនុយឡើងវិញ។",
-        "receipt_ok": "✅ ទទួលបានជោគជ័យ!\nវិក្កយបត្ររបស់អ្នកត្រូវបានបញ្ជូនទៅកាន់អ្នកលក់។ សូមរង់ចាំបន្តិច អាហាររបស់អ្នកនឹងរៀបចំជូនភ្លាមៗ។ 🛵",
+        "receipt_ok": "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!*\n\n💰 ចំនួនទឹកប្រាក់បានទូទាត់: *${paid_amount:.2f}*\n\nសូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵 ប្រសិនបើមានចម្ងល់អាចទាក់ទងមកកាន់ Admin តាមរយៈប៊ូតុងខាងក្រោម។",
         "receipt_fail": "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។",
         "ask_location": "📍 *សូមផ្ញើទីតាំងរបស់អ្នក* ដើម្បីឱ្យប្រព័ន្ធគណនាថ្លៃដឹកជញ្ជូន។",
         "loc_received": "✅ ទទួលបានទីតាំង! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រ...",
@@ -49,7 +49,7 @@ LANG_DICT = {
         "order_app": "📱 小月小吃的菜单",
         "support": "🎧 客服支持 (Support)",
         "no_text": "⚠️ 抱歉，本系统仅支持按钮操作。请点击 /start 重新打开菜单。",
-        "receipt_ok": "✅ 接收成功！\n您的付款截图已发送给商家。请稍候，您的食物马上就好。 🛵",
+        "receipt_ok": "✅ *您的付款已成功！*\n\n💰 已付金额: *${paid_amount:.2f}*\n\n请稍候，您的食物马上就好... 🛵 如果您有任何疑问，请通过下面的按钮联系管理员。",
         "receipt_fail": "⚠️ 您当前没有待付款的订单，或您已经发送过凭证了。",
         "ask_location": "📍 *请发送您的位置* 以便系统计算运费。",
         "loc_received": "✅ 位置已收到！系统正在准备您的账单...",
@@ -65,7 +65,7 @@ LANG_DICT = {
         "order_app": "📱 Order Food",
         "support": "🎧 Customer Support",
         "no_text": "⚠️ Sorry, our system only accepts button interactions. Please click /start to reopen the menu.",
-        "receipt_ok": "✅ Successfully Received!\nYour payment screenshot has been sent to the merchant. Please wait a moment, your food will be prepared shortly. 🛵",
+        "receipt_ok": "✅ *Your payment was successful!*\n\n💰 Amount paid: *${paid_amount:.2f}*\n\nPlease wait a moment for your food... 🛵 If you have any questions, you can contact Admin via the button below.",
         "receipt_fail": "⚠️ You have no pending orders awaiting payment, or you've already sent a receipt.",
         "ask_location": "📍 *Please send your location* for our system to calculate the delivery fee.",
         "loc_received": "✅ Location received! The system is preparing your bill...",
@@ -232,7 +232,18 @@ def handle_payment_screenshot(message):
         response = requests.post(f"{config.API_BASE_URL}/orders/receipt", json={"chat_id": str(message.chat.id), "image_url": file_url}, timeout=40)
         
         if response.status_code == 200 and not response.json().get("error"):
-            bot.reply_to(message, texts["receipt_ok"], parse_mode="Markdown")
+            paid_amount = response.json().get("paid_amount", 0.0)
+            reply_text = texts["receipt_ok"].format(paid_amount=paid_amount)
+            
+            support_btn_text = "🎧 ផ្នែកបម្រើអតិថិជន (Support)"
+            if lang == "zh":
+                support_btn_text = "🎧 客服支持 (Support)"
+            elif lang == "en":
+                support_btn_text = "🎧 Customer Support"
+                
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton(support_btn_text, url="https://t.me/XiaoYueXiaoChi"))
+            bot.reply_to(message, reply_text, parse_mode="Markdown", reply_markup=markup)
         else:
             reason = response.json().get("reason", texts["receipt_fail"])
             bot.reply_to(message, reason, parse_mode="Markdown")

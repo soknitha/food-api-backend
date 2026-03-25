@@ -219,7 +219,7 @@ BOT_LANG_DICT = {
         "pickup_btn": "🏪 មកយកផ្ទាល់នៅហាង (Pickup)",
         "delivery_btn": "🛵 ហាងដឹកជូនផ្ទាល់ (Delivery)",
         "payment_text": "🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n🧾 *លេខវិក្កយបត្រ:* `{order_id}`\n👤 *អតិថិជន:* {customer}\n📱 *គណនី Telegram:* {chat_id}\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n\n🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*\n{formatted_items}\n💰 *សរុបប្រាក់ត្រូវបង់:* {total}\n\n💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA & ACLEDA ខាងក្រោម៖*\n• ឈ្មោះគណនី៖ {aba_name}\n• លេខគណនី៖ `{aba_number}`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។",
-        "payment_success_user": "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!* នេះជាវិក្កយបត្រផ្លូវការ។ សូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵",
+        "payment_success_user": "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!*\n\n💰 ចំនួនទឹកប្រាក់បានទូទាត់: *${paid_amount:.2f}*\n\nសូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵 ប្រសិនបើមានចម្ងល់អាចទាក់ទងមកកាន់ Admin តាមរយៈប៊ូតុងខាងក្រោម។",
         "status_update": "🔔 *ជម្រាបសួរ {customer}*\nការកុម្ម៉ង់លេខ {order_id} របស់អ្នកត្រូវបានប្តូរស្ថានភាពទៅជា៖ *{status}*",
         "points_earned": "🎁 *អបអរសាទរ!* អ្នកទទួលបាន *{points} ពិន្ទុសន្សំ* ពីការទិញនេះ។\nបច្ចុប្បន្នអ្នកមានពិន្ទុសរុប៖ *{new_points} ពិន្ទុ* 🌟",
         "promo_50": "🎉 *កាដូពិសេសពីហាង 小月小吃!*\n\nអ្នកសន្សំបាន ៥០ ពិន្ទុហើយ! 🎁\nយើងខ្ញុំសូមជូន *ភេសជ្ជៈ ១ កែវ ឥតគិតថ្លៃ* សម្រាប់ការកុម្ម៉ង់លើកក្រោយ។\n*(សូម Screenshot សារនេះបង្ហាញទៅកាន់អ្នកលក់)*",
@@ -244,7 +244,7 @@ BOT_LANG_DICT = {
         "pickup_btn": "🏪 到店自取 (Pickup)",
         "delivery_btn": "🛵 商店配送 (Delivery)",
         "payment_text": "🎉 *下单成功！*\n\n🧾 *订单编号:* `{order_id}`\n👤 *客户:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *电话:* {user_phone}\n📍 *位置:* {user_loc}\n\n🛒 *已点菜品:*\n{formatted_items}\n💰 *总计:* {total}\n\n💳 *请向以下 ABA 或 ACLEDA 账户付款：*\n• 账户名称：{aba_name}\n• 账号：`{aba_number}`\n\n📸 付款后，请在此发送付款截图，以便我们立即为您准备食物。",
-        "payment_success_user": "✅ *您的付款已成功！* 这是正式收据。请稍候，您的食物马上就好... 🛵",
+        "payment_success_user": "✅ *您的付款已成功！*\n\n💰 已付金额: *${paid_amount:.2f}*\n\n请稍候，您的食物马上就好... 🛵 如果您有任何疑问，请通过下面的按钮联系管理员。",
         "status_update": "🔔 *您好 {customer}*\n您的订单 {order_id} 状态已更新为：*{status}*",
         "points_earned": "🎁 *恭喜！* 您从此次购买中获得了 *{points} 积分*。\n您当前的总积分为：*{new_points} 分* 🌟",
         "promo_50": "🎉 *小月小吃的特别礼物！*\n\n您已累积 50 积分！🎁\n下次点餐我们将免费赠送 *1 杯饮料*。\n*(请截图此消息并出示给卖家)*",
@@ -269,7 +269,7 @@ BOT_LANG_DICT = {
         "pickup_btn": "🏪 Store Pickup",
         "delivery_btn": "🛵 Store Delivery",
         "payment_text": "🎉 *Order Placed Successfully!*\n\n🧾 *Invoice No:* `{order_id}`\n👤 *Customer:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *Phone:* {user_phone}\n📍 *Location:* {user_loc}\n\n🛒 *Ordered Items:*\n{formatted_items}\n💰 *Total Due:* {total}\n\n💳 *Please make a payment to the ABA & ACLEDA account below:*\n• Account Name: {aba_name}\n• Account Number: `{aba_number}`\n\n📸 After payment, please send the receipt screenshot here so we can prepare your food immediately.",
-        "payment_success_user": "✅ *Your payment was successful!* Here is your official receipt. Please wait a moment for your food... 🛵",
+        "payment_success_user": "✅ *Your payment was successful!*\n\n💰 Amount paid: *${paid_amount:.2f}*\n\nPlease wait a moment for your food... 🛵 If you have any questions, you can contact Admin via the button below.",
         "status_update": "🔔 *Hello {customer}*\nYour order {order_id} status has been updated to: *{status}*",
         "points_earned": "🎁 *Congratulations!* You earned *{points} points* from this purchase.\nYour current total points: *{new_points} points* 🌟",
         "promo_50": "🎉 *Special Gift from Xiao Yue Xiao Chi!*\n\nYou've collected 50 points! 🎁\nWe offer *1 free drink* for your next order.\n*(Please screenshot this message and show it to the seller)*",
@@ -890,13 +890,10 @@ def upload_receipt(data: OrderReceipt):
         admin_msg = f"✅ *អតិថិជនបានទូទាត់ប្រាក់ជោគជ័យ!*\n🧾 វិក្កយបត្រ: `{pending_order['id']}`\n💰 បានទូទាត់: `${extracted_amount}`\n🏦 គណនី: {acc_name}\n🆔 Trx ID: `{trx_id}`"
         if receipt_png:
             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": "@XiaoYueXiaoChi", "caption": admin_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
-            user_msg = lang_texts["payment_success_user"]
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": data.chat_id, "caption": user_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
         else:
             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": data.chat_id, "text": lang_texts["payment_success_user"], "parse_mode": "Markdown"})
             
-        return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True}
+        return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True, "paid_amount": extracted_amount}
     else:
         admin_msg = f"⚠️ *ការព្រមានពីប្រព័ន្ធ AI (ការទូទាត់មានបញ្ហា)!*\n\nការកុម្ម៉ង់លេខ `{pending_order['id']}` របស់អតិថិជន {pending_order['customer']} ត្រូវបានរកឃើញភាពមិនប្រក្រតី។\n\n📉 តម្រូវការទឹកប្រាក់: `${expected_total}`\n🔍 មូលហេតុពី AI: {ai_reason}\n\nសូម Admin ពិនិត្យឡើងវិញជាបន្ទាន់ជាមួយភ្ញៀវ។"
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
