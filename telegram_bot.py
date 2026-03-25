@@ -191,6 +191,33 @@ def handle_delivery_choice(call):
     except Exception as e:
         print(f"⚠️ Delivery choice error for order {order_id}: {e}", file=sys.stderr)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('admin_status_'))
+def handle_admin_status_update(call):
+    parts = call.data.split('_', 3)
+    if len(parts) == 4:
+        _, _, action, order_id = parts
+        status_map = {
+            "cooking": "កំពុងចម្អិន",
+            "delivering": "កំពុងដឹកជញ្ជូន",
+            "done": "✅ រួចរាល់ (បានប្រគល់)"
+        }
+        new_status = status_map.get(action)
+        if new_status:
+            try:
+                res = requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": new_status}, timeout=10)
+                if res.status_code == 200:
+                    bot.answer_callback_query(call.id, f"✅ បានប្តូរស្ថានភាពទៅជា: {new_status}")
+                    new_caption = f"{call.message.caption or call.message.text}\n\n👉 *ស្ថានភាពបច្ចុប្បន្ន៖* {new_status}"
+                    if call.message.content_type == 'photo':
+                        bot.edit_message_caption(new_caption, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown", reply_markup=call.message.reply_markup)
+                    else:
+                        bot.edit_message_text(new_caption, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown", reply_markup=call.message.reply_markup)
+                else:
+                    bot.answer_callback_query(call.id, "❌ មានបញ្ហាក្នុងការប្តូរស្ថានភាព")
+            except Exception as e:
+                print(f"Admin status update error: {e}", file=sys.stderr)
+                bot.answer_callback_query(call.id, "❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ")
+
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):
     lang = get_user_lang(str(message.chat.id))

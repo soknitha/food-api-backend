@@ -145,7 +145,7 @@ app_config_db = {
     "is_open": True,
     "aba_name": "HEM SINATH",
     "aba_number": "086599789",
-    "kitchen_group_id": "",
+    "kitchen_group_id": "-1003740329904",
     "reward_points": 50,
     "reward_discount": 5.0
 }
@@ -536,11 +536,11 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
         if res_user.status_code != 200:
             requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
             
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': app_config_db.get("kitchen_group_id", "@XiaoYueXiaoChi"), 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': app_config_db.get("kitchen_group_id", "-1003740329904"), 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
     else:
         # បម្រុងទុក (Fallback)៖ បើសិនជាបាត់រូប aba_qr.jpg ក៏វានៅតែបាញ់អត្ថបទវិក្កយបត្រទៅដែរ
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown'})
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': "@XiaoYueXiaoChi", 'text': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': app_config_db.get("kitchen_group_id", "-1003740329904"), 'text': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'})
 
 @app.post("/api/orders/finalize")
 def finalize_order_api(data: FinalizeOrderData):
@@ -888,15 +888,24 @@ def upload_receipt(data: OrderReceipt):
         
         receipt_png = generate_receipt_image(pending_order, extracted_amount, lang=user_lang)
         admin_msg = f"✅ *អតិថិជនបានទូទាត់ប្រាក់ជោគជ័យ!*\n🧾 វិក្កយបត្រ: `{pending_order['id']}`\n💰 បានទូទាត់: `${extracted_amount}`\n🏦 គណនី: {acc_name}\n🆔 Trx ID: `{trx_id}`"
+        
+        admin_group = app_config_db.get("kitchen_group_id", "-1003740329904")
+        markup_dict = {
+            "inline_keyboard": [
+                [{"text": "🧑‍🍳 កំពុងចម្អិន", "callback_data": f"admin_status_cooking_{pending_order['id']}"}, {"text": "🛵 កំពុងដឹកជញ្ជូន", "callback_data": f"admin_status_delivering_{pending_order['id']}"}],
+                [{"text": "✅ ប្រគល់ជោគជ័យ (បញ្ចប់)", "callback_data": f"admin_status_done_{pending_order['id']}"}]
+            ]
+        }
         if receipt_png:
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": "@XiaoYueXiaoChi", "caption": admin_msg, "parse_mode": "Markdown"}, files={"photo": ("receipt.png", receipt_png, "image/png")})
+            import json
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={"chat_id": admin_group, "caption": admin_msg, "parse_mode": "Markdown", "reply_markup": json.dumps(markup_dict)}, files={"photo": ("receipt.png", receipt_png, "image/png")})
         else:
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
+            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": admin_group, "text": admin_msg, "parse_mode": "Markdown", "reply_markup": markup_dict})
             
         return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True, "paid_amount": extracted_amount}
     else:
         admin_msg = f"⚠️ *ការព្រមានពីប្រព័ន្ធ AI (ការទូទាត់មានបញ្ហា)!*\n\nការកុម្ម៉ង់លេខ `{pending_order['id']}` របស់អតិថិជន {pending_order['customer']} ត្រូវបានរកឃើញភាពមិនប្រក្រតី។\n\n📉 តម្រូវការទឹកប្រាក់: `${expected_total}`\n🔍 មូលហេតុពី AI: {ai_reason}\n\nសូម Admin ពិនិត្យឡើងវិញជាបន្ទាន់ជាមួយភ្ញៀវ។"
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": "@XiaoYueXiaoChi", "text": admin_msg, "parse_mode": "Markdown"})
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": app_config_db.get("kitchen_group_id", "-1003740329904"), "text": admin_msg, "parse_mode": "Markdown"})
         user_reject_reason = lang_texts["payment_reject_user"].format(reason=ai_reason)
         return {"error": "Payment verification failed", "reason": user_reject_reason, "verified": False}
 
