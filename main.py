@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
 import requests
@@ -73,6 +74,15 @@ async def lifespan(app: FastAPI):
         pass
 
 app = FastAPI(title="Food E-Commerce API", lifespan=lifespan)
+
+# ---------------- CORS Middleware (ការពារការប្លុកទិន្នន័យពី Telegram Web App) ---------------- #
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---------------- Middleware: Auto-Detect Real Domain ---------------- #
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -881,10 +891,14 @@ def get_menu(response: Response):
             print(f"⚠️ Column sort_order missing, falling back to id: {e}")
             try:
                 res_db = supabase.table("menu").select("*").order("id").execute()
+                menu_cache = res_db.data
+                last_menu_fetch = time.time()
                 return res_db.data
             except Exception as e2:
                 try:
                     res_db = supabase.table("menu").select("*").execute()
+                    menu_cache = res_db.data
+                    last_menu_fetch = time.time()
                     return res_db.data
                 except Exception as e3:
                     pass # បើ Supabase គាំងទាំងស្រុង, បន្តទៅប្រើទិន្នន័យបម្រុងពី Memory
