@@ -672,7 +672,7 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
     return {"error": "Order not found"}
 
 def generate_receipt_image(order_data, amount_paid, lang="km"):
-    """ Generates a highly professional POS-style PNG receipt image based on user's language. """
+    """ Generates a highly professional POS-style PNG receipt image based on user's language. (High Definition - Retina Ready) """
     try:
         from PIL import Image, ImageDraw, ImageFont
         import io
@@ -681,12 +681,26 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
         texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
         items_list = [item.strip() for item in order_data["items"].split(",") if item.strip()]
         
-        width = 480
-        base_height = 550
-        height = base_height + (len(items_list) * 40)
+        # បង្កើនគុណភាពរូបភាព ២ ដង (High Resolution - Retina Display)
+        scale = 2
+        width = 500 * scale
+        base_height = 600 * scale
+        height = base_height + (len(items_list) * 50 * scale)
         
-        img = Image.new('RGB', (width, height), color=(255, 255, 255))
+        # ពណ៌ទូទៅ (Modern Colors Design)
+        bg_color = (245, 247, 250)      # ពណ៌ផ្ទៃខាងក្រោយរាងប្រផេះស្រាល
+        card_color = (255, 255, 255)    # ពណ៌សន្លឹកវិក្កយបត្រ
+        text_main = (33, 37, 41)        # ពណ៌អក្សរគោល (ខ្មៅចាស់)
+        text_muted = (108, 117, 125)    # ពណ៌អក្សរបន្ទាប់បន្សំ (ប្រផេះ)
+        primary_color = (39, 174, 96)   # ពណ៌បៃតងបញ្ជាក់ការទូទាត់
+        border_color = (226, 232, 240)  # ពណ៌បន្ទាត់ខណ្ឌ
+        
+        img = Image.new('RGB', (width, height), color=bg_color)
         d = ImageDraw.Draw(img)
+        
+        # គូសផ្ទៃកាតវិក្កយបត្រពណ៌សកណ្តាលមានកែងមូល (Modern Card Style)
+        margin = 25 * scale
+        d.rounded_rectangle([(margin, margin), (width - margin, height - margin)], radius=15*scale, fill=card_color, outline=border_color, width=2*scale)
         
         zh_font_path = config.KHMER_FONT_PATH.replace("Khmer", "SC")
         active_font_path = zh_font_path if lang == "zh" else config.KHMER_FONT_PATH
@@ -694,79 +708,91 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
             active_font_path = config.KHMER_FONT_PATH
         
         try:
-            font_title = ImageFont.truetype(active_font_path, 32)
-            font_bold = ImageFont.truetype(active_font_path, 24)
-            font_text = ImageFont.truetype(active_font_path, 20)
+            font_shop = ImageFont.truetype(active_font_path, 36 * scale)
+            font_title = ImageFont.truetype(active_font_path, 28 * scale)
+            font_bold = ImageFont.truetype(active_font_path, 22 * scale)
+            font_text = ImageFont.truetype(active_font_path, 20 * scale)
+            font_small = ImageFont.truetype(active_font_path, 16 * scale)
         except Exception as e:
             print(f"⚠️  Font Error: {e}. Falling back to default font.", file=sys.stderr)
-            font_title = font_text = font_bold = ImageFont.load_default()
+            font_shop = font_title = font_text = font_bold = font_small = ImageFont.load_default()
 
-        def draw_centered(y_pos, text_val, f_type, fill=(0,0,0)):
+        def draw_centered(y_pos, text_val, f_type, fill=text_main):
             try:
                 bbox = d.textbbox((0, 0), text_val, font=f_type)
                 w = bbox[2] - bbox[0]
             except AttributeError:
                 w = d.textlength(text_val, font=f_type)
             d.text(((width - w) / 2, y_pos), text_val, fill=fill, font=f_type)
-
-        def draw_dashed(y_pos):
-            d.text((20, y_pos), "-" * 65, fill=(100,100,100), font=font_text)
+            
+        def draw_divider(y_pos):
+            d.line([(margin * 1.5, y_pos), (width - margin * 1.5, y_pos)], fill=border_color, width=2*scale)
+            
+        def draw_row(y_pos, left_text, right_text, f_type_left, f_type_right, fill_left=text_muted, fill_right=text_main):
+            d.text((margin * 1.5, y_pos), left_text, fill=fill_left, font=f_type_left)
+            try: w = d.textbbox((0, 0), right_text, font=f_type_right)[2]
+            except AttributeError: w = d.textlength(right_text, font=f_type_right)
+            d.text((width - margin * 1.5 - w, y_pos), right_text, fill=fill_right, font=f_type_right)
 
         # --- Header ---
-        y = 35
-        draw_centered(y, texts["receipt_shop"], font_title)
-        y += 50
-        draw_centered(y, texts["receipt_title"], font_bold)
-        y += 45
-        draw_dashed(y)
-        y += 25
+        y = margin + 35 * scale
+        draw_centered(y, texts["receipt_shop"], font_shop)
+        y += 60 * scale
+        
+        # Badge "PAID" រចនាបែបទំនើប (Modern Dynamic Badge)
+        paid_text = texts.get("receipt_footer", "*** PAID ***").replace("*", "").strip()
+        try: bw = d.textbbox((0, 0), paid_text, font=font_small)[2]
+        except AttributeError: bw = d.textlength(paid_text, font=font_small)
+        badge_x1 = (width - bw - 40*scale) / 2
+        badge_x2 = badge_x1 + bw + 40*scale
+        d.rounded_rectangle([(badge_x1, y), (badge_x2, y + 35*scale)], radius=17*scale, fill=(233, 247, 239))
+        draw_centered(y + 6*scale, paid_text, font_small, fill=primary_color)
+        
+        y += 70 * scale
+        draw_divider(y)
+        y += 30 * scale
 
         # --- Info ---
-        d.text((30, y), f"{texts['receipt_invoice']} {order_data['id']}", fill=(0,0,0), font=font_text)
-        y += 35
-        d.text((30, y), f"{texts['receipt_date']} {datetime.now().strftime('%d/%m/%Y %H:%M')}", fill=(0,0,0), font=font_text)
-        y += 35
-        d.text((30, y), f"{texts['receipt_customer']} {order_data['customer']}", fill=(0,0,0), font=font_text)
-        y += 35
-        draw_dashed(y)
-        y += 25
+        draw_row(y, texts["receipt_invoice"], str(order_data['id']), font_text, font_bold)
+        y += 40 * scale
+        draw_row(y, texts["receipt_date"], datetime.now().strftime('%d/%m/%Y %H:%M'), font_text, font_bold)
+        y += 40 * scale
+        draw_row(y, texts["receipt_customer"], str(order_data['customer']), font_text, font_bold)
+        y += 50 * scale
+        
+        draw_divider(y)
+        y += 30 * scale
         
         # --- Items ---
-        d.text((30, y), texts["receipt_items"], fill=(0,0,0), font=font_bold)
-        y += 40
+        d.text((margin * 1.5, y), texts["receipt_items"], fill=text_main, font=font_bold)
+        y += 50 * scale
+        
         for item in items_list:
-            max_chars = 40
+            max_chars = 45 # អនុញ្ញាតឱ្យឈ្មោះមុខម្ហូបចេញវែងជាងមុន
             display_item = item if len(item) <= max_chars else item[:max_chars-3] + "..."
-            d.text((30, y), display_item, fill=(0,0,0), font=font_text)
-            y += 35
+            d.text((margin * 1.5, y), f"{idx+1}.  {display_item}", fill=text_main, font=font_text)
+            y += 45 * scale
             
-        draw_dashed(y)
-        y += 25
+        y += 10 * scale
+        draw_divider(y)
+        y += 35 * scale
         
         # --- Totals ---
-        d.text((30, y), texts["receipt_total"], fill=(0,0,0), font=font_bold)
         tot_val = str(order_data['total'])
-        try: w = d.textbbox((0, 0), tot_val, font=font_bold)[2]
-        except AttributeError: w = d.textlength(tot_val, font=font_bold)
-        d.text((width - 30 - w, y), tot_val, fill=(0,0,0), font=font_bold)
-        y += 45
+        draw_row(y, texts["receipt_total"], tot_val, font_bold, font_shop)
+        y += 65 * scale
 
-        d.text((30, y), texts["receipt_paid"], fill=(0,0,0), font=font_bold)
         paid_val = f"${float(amount_paid):.2f}"
-        try: w = d.textbbox((0, 0), paid_val, font=font_bold)[2]
-        except AttributeError: w = d.textlength(paid_val, font=font_bold)
-        d.text((width - 30 - w, y), paid_val, fill=(39, 174, 96), font=font_bold)
-        y += 55
+        draw_row(y, texts["receipt_paid"], paid_val, font_text, font_bold, fill_right=primary_color)
+        y += 65 * scale
         
-        draw_dashed(y)
-        y += 30
+        draw_divider(y)
+        y += 40 * scale
         
-        draw_centered(y, texts["receipt_footer"], font_bold, fill=(39, 174, 96))
-        y += 40
-        draw_centered(y, texts["receipt_thanks"], font_text)
+        draw_centered(y, texts["receipt_thanks"], font_text, fill=text_muted)
         
         bio = io.BytesIO()
-        img.save(bio, format="PNG")
+        img.save(bio, format="PNG", optimize=True)
         bio.seek(0)
         return bio.getvalue()
     except Exception as e:
