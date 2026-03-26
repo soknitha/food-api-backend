@@ -5,6 +5,7 @@ import requests
 import os
 import sys
 from google import genai
+import time
 
 # Import the centralized configuration
 import config
@@ -80,7 +81,8 @@ LANG_DICT = {
 def get_main_reply_markup(lang):
     """ មុខងារសម្រាប់ហៅប៊ូតុងទាំង ៣ មកវិញជានិច្ច (ការពារកុំឱ្យជាប់គាំង) """
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
-    app_url = f"{config.MINI_APP_URL}?lang={lang}"
+    # 🔥 Master Fix: បន្ថែម Timestamp ពីក្រោយ URL ដើម្បីកម្ទេច Cache របស់ Telegram 100%
+    app_url = f"{config.MINI_APP_URL}?lang={lang}&v={int(time.time())}"
     reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមចុចប៊ូតុងនៅទីនេះ...")
     btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
     phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
@@ -156,7 +158,8 @@ def show_main_menu(chat_id, lang="km"):
     texts = LANG_DICT.get(lang, LANG_DICT["km"])
     
     # ១. បញ្ចូលកន្ទុយ ?lang= ទៅក្នុង URL វិញ ដើម្បីឱ្យ Mini App ចាប់ភាសាបានភ្លាមៗ (Smart Language V2)
-    app_url = f"{config.MINI_APP_URL}?lang={lang}"
+    # 🔥 Master Fix: ធ្វើឱ្យ URL ថ្មីជានិច្ចរាល់ពេលភ្ញៀវចុចបើក 
+    app_url = f"{config.MINI_APP_URL}?lang={lang}&v={int(time.time())}"
     
     # ២. ហៅមុខងារបង្កើតប៊ូតុងម៉ឺនុយធំនៅខាងក្រោមបាតអេក្រង់
     reply_markup = get_main_reply_markup(lang)

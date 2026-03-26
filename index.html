@@ -80,7 +80,8 @@
 
         async function fetchMenu() {
             try {
-                const response = await fetch(`${API_BASE}/menu`);
+                // 🔥 Master Fix: បន្ថែម Date.now() ដើម្បីបង្ខំឱ្យទាញយកទិន្នន័យថ្មីជានិច្ច (Bypass Browser Cache)
+                const response = await fetch(`${API_BASE}/menu?t=${Date.now()}`);
                 menuData = await response.json();
                 renderMenu();
             } catch (error) {
@@ -92,7 +93,7 @@
 
         function getLocalizedName(full_name) {
             // គាំទ្រការបំបែកដោយប្រើសញ្ញា | ឬ / (ឧទាហរណ៍: ភីហ្សា / 披萨 / Pizza)
-            let normalized = full_name.replace(/\//g, '|'); 
+            let normalized = (full_name || "Unknown").replace(/\//g, '|'); 
             const parts = normalized.split('|').map(p => p.trim()).filter(p => p.length > 0);
             
             // ប្រើប្រាស់ភាសាដែលទាញបានពី Database ជាជាងពី URL
@@ -119,7 +120,7 @@
                     <img src="${item.image_url || 'https://via.placeholder.com/150'}" alt="${name}" class="menu-img" loading="lazy">
                     <div class="menu-info">
                         <div class="menu-name">${name}</div>
-                        <div class="menu-price">$${item.price.toFixed(2)}</div>
+                        <div class="menu-price">$${(item.price || 0).toFixed(2)}</div>
                         ${qty > 0 
                             ? `<button class="add-btn" style="background:#2ecc71;" onclick="addToCart(${item.id})">✅ Added (${qty})</button>` 
                             : `<button class="add-btn" onclick="addToCart(${item.id})">➕ Add to Order</button>`
