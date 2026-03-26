@@ -58,8 +58,8 @@ WEBHOOK_URL = f"https://{DOMAIN}/webhook"
 MINI_APP_URL = f"https://{DOMAIN}/miniapp"
 
 # Internal API URL 
-# ប្រើ Localhost ជាលំនាំដើម, ប៉ុន្តែអ្នកអាចភ្ជាប់វាទៅ Live Server បានតាមរយៈការថែម API_BASE_URL ក្នុងឯកសារ .env
-API_BASE_URL = os.getenv("API_BASE_URL", f"http://127.0.0.1:{PORT}/api")
+# 🔥 Master Fix: បង្ខំឱ្យ Admin App ភ្ជាប់ទៅកាន់ Live Server (Railway) ជានិច្ច ដើម្បីឱ្យទិន្នន័យស៊ីគ្នា ១០០% ជាមួយ Mini App
+API_BASE_URL = os.getenv("API_BASE_URL", f"https://{DOMAIN}/api")
 
 # --- Asset Paths ---
 # Path to the Khmer font for receipt generation
