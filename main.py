@@ -1015,6 +1015,7 @@ def get_menu(response: Response):
             res_db = supabase.table("menu").select("*").order("sort_order", nulls_first=False).order("id").execute()
             menu_cache = res_db.data
             last_menu_fetch = time.time()
+            print(f"📦 [DEBUG] Supabase ដំណើរការល្អ! ទាញយកបានមីនុយចំនួន: {len(menu_cache)} មុខ")
             return menu_cache
         except Exception as e:
             print(f"⚠️ Column sort_order missing, falling back to id: {e}")
