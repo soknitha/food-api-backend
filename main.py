@@ -371,13 +371,20 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
 # ---------------- បម្រើ (Serve) គេហទំព័រ Mini App ដោយផ្ទាល់ ---------------- #
 @app.get("/miniapp", response_class=HTMLResponse)
 def serve_miniapp(response: Response):
-    # បំពាក់ Cache-Control រក្សាគេហទំព័រទុក ១ថ្ងៃពេញ ធ្វើឱ្យ Mini App បើកលោតចេញភ្លាមៗ (0ms)
-    response.headers["Cache-Control"] = "public, max-age=86400"
+    # 🔥 Master Fix: បិទការជាប់ Cache ទាំងស្រុង ដើម្បីការពារ Telegram Webview កុំឱ្យចងចាំអេក្រង់ទទេ
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     # ប្រើប្រាស់ទីតាំងពិតប្រាកដ (Absolute Path) ដើម្បីប្រាកដថាវារកឃើញឯកសារ index.html ជានិច្ច
     html_path = os.path.join(os.path.dirname(__file__), "index.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
-            return f.read()
+            html_content = f.read()
+            # បញ្ចូល Meta Tags ទៅក្នុង HTML ផ្ទាល់ ដើម្បីបង្ខំឱ្យទូរស័ព្ទលុប Cache ចោល (Cache Buster)
+            meta_tags = """<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n    <meta http-equiv="Pragma" content="no-cache">\n    <meta http-equiv="Expires" content="0">"""
+            if "<head>" in html_content:
+                html_content = html_content.replace("<head>", f"<head>\n    {meta_tags}")
+            return html_content
     return "<h1>កំពុងរៀបចំប្រព័ន្ធ... រកមិនឃើញឯកសារ index.html ទេ</h1>"
 
 @app.get("/api/orders")
@@ -1005,7 +1012,8 @@ last_menu_fetch = 0
 
 @app.get("/api/menu")
 def get_menu(response: Response):
-    response.headers["Cache-Control"] = "public, max-age=15" # បង្ខំឱ្យទូរស័ព្ទ Save ទិន្នន័យនេះទុកក្នុង RAM ១៥វិនាទី
+    # 🔥 Master Fix: បិទ API Cache ដើម្បីឱ្យវាទាញយកទិន្នន័យថ្មីពី Database ជានិច្ច (100% Real-time)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     global menu_cache, last_menu_fetch
     # កំណត់ Cache ៥ វិនាទី ដើម្បីឱ្យ Mini App ដើរលឿនដូចផ្លេកបន្ទោរ (Lightning Fast)
     if time.time() - last_menu_fetch < 5 and menu_cache:
@@ -1267,7 +1275,8 @@ last_config_fetch = 0
 
 @app.get("/api/config")
 def get_config(response: Response):
-    response.headers["Cache-Control"] = "public, max-age=30" # បង្ខំឱ្យទូរស័ព្ទ Save ការកំណត់រយៈពេល ៣០វិនាទី
+    # បិទ Cache ការកំណត់
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     global config_cache, last_config_fetch
     if time.time() - last_config_fetch < 10 and config_cache:
         return config_cache
