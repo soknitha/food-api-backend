@@ -655,9 +655,9 @@ def process_location_api(data: ProcessLocationReq, background_tasks: BackgroundT
     
     order_to_process = None
     if USE_SUPABASE:
-        res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "រង់ចាំទីតាំង").execute()
+        res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "រង់ចាំទីតាំង").order("created_at", desc=True).limit(1).execute()
         if res.data:
-            order_to_process = res.data[-1]
+            order_to_process = res.data[0]
     else:
         for o in reversed(orders_db):
             if str(o.get("chat_id")) == data.chat_id and o.get("status") == "រង់ចាំទីតាំង":
@@ -879,9 +879,9 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
     # ស្វែងរកការកុម្ម៉ង់ដែលកំពុងរង់ចាំ (Pending Order)
     pending_order = None
     if USE_SUPABASE:
-        res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "ថ្មី (រង់ចាំការបញ្ជាក់)").execute()
+        res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "ថ្មី (រង់ចាំការបញ្ជាក់)").order("created_at", desc=True).limit(1).execute()
         if res.data:
-            pending_order = res.data[-1]
+            pending_order = res.data[0]
     else:
         for order in reversed(orders_db):
             if str(order.get("chat_id")) == str(data.chat_id) and order.get("status") == "ថ្មី (រង់ចាំការបញ្ជាក់)":
