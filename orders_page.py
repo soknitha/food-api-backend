@@ -92,18 +92,30 @@ class ReceiptDialog(QDialog):
             parts = item_str.rsplit('x', 1)
             if len(parts) == 2:
                 name = parts[0].strip()
-                try:
-                    qty = int(parts[1].strip())
-                except Exception:
-                    qty = 1
+                qty_str = parts[1].strip()
+                
+                # ស្វែងរកតម្លៃរាយដែលបង្កប់មកជាមួយ (ឧ. "1 ($1.50)") សម្រាប់ថ្លៃដឹកជញ្ជូន
+                price_match = re.search(r'\(\$([\d\.]+)\)', qty_str)
+                if price_match:
+                    unit_price = float(price_match.group(1))
+                    qty_str_clean = re.sub(r'\(\$([\d\.]+)\)', '', qty_str).strip()
+                    try:
+                        qty = int(qty_str_clean) if qty_str_clean else 1
+                    except Exception:
+                        qty = 1
+                else:
+                    try:
+                        qty = int(qty_str)
+                    except Exception:
+                        qty = 1
+                    name_clean = re.sub(r'^[០១២៣៤៥៦៧៨៩0-9]+\.\s*', '', name)
+                    unit_price = self.menu_prices.get(name_clean, 0.0)
             else:
                 name = item_str
                 qty = 1
+                name_clean = re.sub(r'^[០១២៣៤៥៦៧៨៩0-9]+\.\s*', '', name)
+                unit_price = self.menu_prices.get(name_clean, 0.0)
                 
-            # លុបលេខរៀងពីមុខឈ្មោះម្ហូបចេញ (ឧទាហរណ៍៖ "១. ", "1. ") ដើម្បីឱ្យឈ្មោះម្ហូបស្អាត និងស្វែងរកតម្លៃរាយបានត្រឹមត្រូវ
-            name = re.sub(r'^[០១២៣៤៥៦៧៨៩0-9]+\.\s*', '', name)
-
-            unit_price = self.menu_prices.get(name, 0.0)
             total_price = unit_price * qty
             
             table_rows += f"""
@@ -524,12 +536,19 @@ class OrdersPage(QWidget):
             
             # រៀបចំទម្រង់មុខម្ហូបឱ្យមានលេខរៀង និងចុះបន្ទាត់ (បំប្លែងទៅជាលេខខ្មែរ)
             raw_items = order.get("items", "")
-            item_list = raw_items.split(", ") if raw_items else []
+            item_list = raw_items.split(",") if raw_items else []
             formatted_items = []
             khmer_digits = str.maketrans('0123456789', '០១២៣៤៥៦៧៨៩')
-            for i, item in enumerate(item_list, 1):
-                k_num = str(i).translate(khmer_digits)
-                formatted_items.append(f"{k_num}. {item}")
+            idx_num = 1
+            for item in item_list:
+                item_str = item.strip()
+                if not item_str: continue
+                if "🎁" in item_str or "🛵" in item_str:
+                    formatted_items.append(f"  {item_str}")
+                else:
+                    k_num = str(idx_num).translate(khmer_digits)
+                    formatted_items.append(f"{k_num}. {item_str}")
+                    idx_num += 1
             
             item_items = QTableWidgetItem("\n".join(formatted_items))
             self.table.setItem(row, 3, item_items)

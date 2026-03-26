@@ -1,16 +1,22 @@
-# ឯកសារបរិស្ថាន និងកូដសម្ងាត់ (សំខាន់ណាស់ ហាម Backup ចូល Public)
+# Environment variables - DO NOT COMMIT!
 .env
-venv/
-env/
 
-# ឯកសារ Python Cache
+# Sensitive credentials for the admin app
+credentials.json
+
+# Python cache
 __pycache__/
 *.pyc
 
-# ឯកសារដែលបាន Build រួចពី PyInstaller
-build/
+# PyInstaller build artifacts
 dist/
+build/
 *.spec
 
-# រូបភាព ឬឯកសារដែលអតិថិជន Upload
-static/uploads/
+# Virtual environment folder
+venv/
+.venv/
+
+# IDE settings
+.idea/
+.vscode/
