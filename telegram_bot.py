@@ -316,6 +316,7 @@ def handle_text_messages(message):
     if chat_id == "-1003740329904" or message.chat.id < 0:
         if message.reply_to_message and message.reply_to_message.text and "👉 សូម Reply ត្រឡប់មកកាន់សារនេះ" in message.reply_to_message.text:
             import re
+            time.sleep(0.5)
             match = re.search(r"`(\d+)`", message.reply_to_message.text)
             if match:
                 try:
@@ -332,6 +333,7 @@ def handle_text_messages(message):
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("💬 ឆ្លើយតប (Reply)", callback_data=f"admin_reply_{chat_id}"))
     bot.send_message(admin_group, f"💬 *សារពីភ្ញៀវ:* {user_name}\n🆔 ID: `{chat_id}`\n\n{message.text}", parse_mode="Markdown", reply_markup=markup)
+    time.sleep(0.5)
 
     try: requests.post(f"{config.API_BASE_URL}/crm/messages", json={"chat_id": chat_id, "user": user_name, "text": message.text}, timeout=5)
     except: pass
