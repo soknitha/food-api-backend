@@ -114,6 +114,14 @@ try:
     supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
     USE_SUPABASE = True
     print("✅ Successfully connected to Supabase! ធានាសុវត្ថិភាពទិន្នន័យ ១០០% មិនបាត់បង់។")
+    
+    # 🌟 ប្រព័ន្ធឆ្លាតវៃពិនិត្យមើល RLS (Row Level Security)
+    try:
+        test_rls = supabase.table("config").select("*").limit(1).execute()
+        if test_rls.data == []:
+            print("⚠️ ព្រមានកម្រិតខ្ពស់: Supabase របស់អ្នកកំពុងបើក RLS ដោយគ្មាន Policy! វានឹងបាំងទិន្នន័យ (មីនុយបាត់)។ សូមប្តូរ SUPABASE_KEY ទៅប្រើ 'service_role key' ជាបន្ទាន់!")
+    except Exception as e:
+        print(f"⚠️ RLS Check Error: {e}")
 except Exception as e:
     print(f"❌ FATAL ERROR: មិនអាចភ្ជាប់ទៅកាន់មូលដ្ឋានទិន្នន័យបានទេ: {e}", file=sys.stderr)
     sys.exit("ប្រព័ន្ធទាមទារឱ្យមាន Database (Supabase) ដើម្បីដំណើរការ និងការពារការបាត់បង់ទិន្នន័យ។")
@@ -211,6 +219,29 @@ class AppConfig(BaseModel):
 class MenuReorderItem(BaseModel):
     id: int
     sort_order: int
+
+# ---------------- មុខងារជំនួយសម្រាប់បាញ់សារទៅ Telegram លឿនដូចផ្លេកបន្ទោរ (Async Background Tasks) ---------------- #
+def send_telegram_sync(chat_id, text, parse_mode="Markdown", reply_markup=None):
+    try:
+        payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json=payload, timeout=10)
+    except Exception as e:
+        print(f"⚠️ Telegram sending error: {e}")
+
+def send_telegram_photo_sync(chat_id, caption, photo_path, parse_mode="Markdown", reply_markup_json=None):
+    try:
+        with open(photo_path, "rb") as f:
+            qr_bytes = f.read()
+        data = {'chat_id': chat_id, 'caption': caption, 'parse_mode': parse_mode}
+        if reply_markup_json:
+            data['reply_markup'] = reply_markup_json
+        res = requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data=data, files={'photo': ('photo.jpg', qr_bytes, 'image/jpeg')}, timeout=15)
+        if res.status_code != 200:
+            send_telegram_sync(chat_id, caption, parse_mode, reply_markup_json)
+    except Exception as e:
+        print(f"⚠️ Telegram photo sending error: {e}")
 
 # ---------------- វចនានុក្រមភាសាសម្រាប់រាល់សាររបស់ Bot (Bot Localization) ---------------- #
 BOT_LANG_DICT = {
@@ -400,7 +431,7 @@ def create_order(order: OrderCreate, background_tasks: BackgroundTasks):
                 else:
                     formatted_k += f"  ☑️ {itm_str}\n"
         kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
+        background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
         
     background_tasks.add_task(broadcast_ws_event, "NEW_ORDER", new_order)
     return new_order
@@ -459,17 +490,12 @@ def miniapp_checkout(order: OrderCreate, background_tasks: BackgroundTasks):
                     formatted_items += f"  🔸 {itm_str}\n"
                     
         msg_text = texts["checkout_initial"].format(order_id=new_order['id'], formatted_items=formatted_items, total=new_order['total'])
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={
-            "chat_id": order.chat_id,
-            "text": msg_text,
-            "parse_mode": "Markdown",
-            "reply_markup": markup
-        })
+        background_tasks.add_task(send_telegram_sync, order.chat_id, msg_text, "Markdown", markup)
         
     background_tasks.add_task(broadcast_ws_event, "NEW_ORDER", new_order)
     return {"message": "Order placed and receipt sent", "order": new_order}
 
-def finalize_order_internal(order_id, chat_id, fee, distance=0):
+def finalize_order_internal(order_id, chat_id, fee, background_tasks: BackgroundTasks, distance=0):
     order = None
     if USE_SUPABASE:
         res = supabase.table("orders").select("*").eq("id", order_id).execute()
@@ -517,7 +543,7 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
                 else:
                     formatted_k += f"  ☑️ {itm_str}\n"
         kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (រង់ចាំការបង់ប្រាក់)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": kitchen_id, "text": kitchen_msg, "parse_mode": "Markdown"})
+        background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
 
     user_phone = "មិនមាន"
     user_loc = "មិនមាន"
@@ -576,27 +602,21 @@ def finalize_order_internal(order_id, chat_id, fee, distance=0):
 
     qr_path = os.path.join(os.path.dirname(__file__), "aba_qr.jpg")
     if os.path.exists(qr_path):
-        with open(qr_path, "rb") as f:
-            qr_bytes = f.read()
-        
         # បង្កប់ Keyboard ទៅក្នុងសារវិក្កយបត្រដោយផ្ទាល់ ដើម្បីកុំឱ្យផ្ញើសាររំខានច្រើនតង់
-        res_user = requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': chat_id, 'caption': payment_text, 'parse_mode': 'Markdown', 'reply_markup': rm_json}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
-        if res_user.status_code != 200:
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown', 'reply_markup': reply_markup_dict})
-            
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendPhoto", data={'chat_id': app_config_db.get("kitchen_group_id", "-1003740329904"), 'caption': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'}, files={'photo': ('aba_qr.jpg', qr_bytes, 'image/jpeg')})
+        background_tasks.add_task(send_telegram_photo_sync, chat_id, payment_text, qr_path, "Markdown", rm_json)
+        background_tasks.add_task(send_telegram_photo_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), f"🔔 *New Order Alert!*\n\n{payment_text}", qr_path, "Markdown", None)
     else:
         # បម្រុងទុក (Fallback)៖ បើសិនជាបាត់រូប aba_qr.jpg ក៏វានៅតែបាញ់អត្ថបទវិក្កយបត្រទៅដែរ
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': chat_id, 'text': payment_text, 'parse_mode': 'Markdown', 'reply_markup': reply_markup_dict})
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={'chat_id': app_config_db.get("kitchen_group_id", "-1003740329904"), 'text': f"🔔 *New Order Alert!*\n\n{payment_text}", 'parse_mode': 'Markdown'})
+        background_tasks.add_task(send_telegram_sync, chat_id, payment_text, "Markdown", reply_markup_dict)
+        background_tasks.add_task(send_telegram_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), f"🔔 *New Order Alert!*\n\n{payment_text}")
 
 @app.post("/api/orders/finalize")
-def finalize_order_api(data: FinalizeOrderData):
-    finalize_order_internal(data.order_id, data.chat_id, data.delivery_fee, data.distance)
+def finalize_order_api(data: FinalizeOrderData, background_tasks: BackgroundTasks):
+    finalize_order_internal(data.order_id, data.chat_id, data.delivery_fee, background_tasks, data.distance)
     return {"status": "ok"}
 
 @app.post("/api/orders/process_location")
-def process_location_api(data: ProcessLocationReq):
+def process_location_api(data: ProcessLocationReq, background_tasks: BackgroundTasks):
     import math
     def calculate_distance(lat1, lon1, lat2, lon2):
         R = 6371
@@ -638,7 +658,7 @@ def process_location_api(data: ProcessLocationReq):
                 break
                 
     if order_to_process:
-        finalize_order_internal(order_to_process["id"], data.chat_id, fee, dist)
+        finalize_order_internal(order_to_process["id"], data.chat_id, fee, background_tasks, dist)
         return {"status": "ok"}
     return {"error": "no order found"}
 
@@ -662,7 +682,7 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
             lang = get_user_lang_from_db(order["chat_id"])
             texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
             msg_text = texts["status_update"].format(customer=order['customer'], order_id=order['id'], status=status_update.status)
-            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": msg_text, "parse_mode": "Markdown"})
+            background_tasks.add_task(send_telegram_sync, order["chat_id"], msg_text)
             
         # ---------------- មុខងារ Loyalty Points ---------------- #
         if status_update.status == "✅ រួចរាល់ (បានប្រគល់)":
@@ -702,16 +722,16 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
 
                     if order.get("chat_id"):
                         pts_msg = texts["points_earned"].format(points=points_earned, new_points=new_points)
-                        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": pts_msg, "parse_mode": "Markdown"})
+                        background_tasks.add_task(send_telegram_sync, order["chat_id"], pts_msg)
                         
                         # ---- ផ្ញើសារ Promotion ដោយស្វ័យប្រវត្តិ ---- #
                         old_points = new_points - points_earned
                         if new_points >= 50 and old_points < 50:
                             promo_msg = texts["promo_50"]
-                            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
+                            background_tasks.add_task(send_telegram_sync, order["chat_id"], promo_msg)
                         elif new_points >= 100 and old_points < 100:
                             promo_msg = texts["promo_100"]
-                            requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": order["chat_id"], "text": promo_msg, "parse_mode": "Markdown"})
+                            background_tasks.add_task(send_telegram_sync, order["chat_id"], promo_msg)
             except Exception as e:
                 print("Error adding points:", e)
         background_tasks.add_task(broadcast_ws_event, "UPDATE_ORDER", order)
@@ -971,17 +991,12 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
             ]
         }
         
-        # បញ្ជូនការផ្ញើសារទៅ Background Task ដោយប្រើប្រាស់ Arguments ច្បាស់លាស់ដើម្បីការពារកំហុស (Closure Bug)
-        def notify_admin_bg(chat_id, text, markup):
-            try: requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown", "reply_markup": markup}, timeout=15)
-            except Exception as e: print(f"⚠️ Notification Error: {e}")
-            
-        background_tasks.add_task(notify_admin_bg, admin_group, admin_msg, markup_dict)
+        background_tasks.add_task(send_telegram_sync, admin_group, admin_msg, "Markdown", markup_dict)
             
         return {"message": "Receipt saved and verified", "order_id": pending_order["id"], "verified": True, "paid_amount": extracted_amount}
     else:
         admin_msg = f"⚠️ *ការព្រមានពីប្រព័ន្ធ AI (ការទូទាត់មានបញ្ហា)!*\n\nការកុម្ម៉ង់លេខ `{pending_order['id']}` របស់អតិថិជន {pending_order['customer']} ត្រូវបានរកឃើញភាពមិនប្រក្រតី។\n\n📉 តម្រូវការទឹកប្រាក់: `${expected_total}`\n🔍 មូលហេតុពី AI: {ai_reason}\n\nសូម Admin ពិនិត្យឡើងវិញជាបន្ទាន់ជាមួយភ្ញៀវ។"
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": app_config_db.get("kitchen_group_id", "-1003740329904"), "text": admin_msg, "parse_mode": "Markdown"})
+        background_tasks.add_task(send_telegram_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), admin_msg)
         user_reject_reason = lang_texts["payment_reject_user"].format(reason=ai_reason)
         return {"error": "Payment verification failed", "reason": user_reject_reason, "verified": False}
 
@@ -1041,7 +1056,7 @@ def add_menu(item: MenuItem, background_tasks: BackgroundTasks):
         try:
             response = supabase.table("menu").insert({"name": item.name, "price": item.price, "image_url": item.image_url}).execute()
             if not response.data:
-                raise HTTPException(status_code=403, detail="❌ ការបញ្ជូលត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាព។ សូមចូលទៅបិទ RLS (Disable RLS) លើ Table 'menu' ក្នុងគណនី Supabase របស់អ្នកជាបន្ទាន់។")
+                raise HTTPException(status_code=403, detail="❌ ការបញ្ជូលត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាព RLS។ សូមចូលទៅយក 'Service Role Key' ពី Supabase មកដាក់ក្នុងអថេរ SUPABASE_KEY ជំនួស Anon Key ចាស់របស់អ្នក។")
             background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", item.model_dump())
             return response.data[0]
         except Exception as e:
@@ -1059,7 +1074,7 @@ def update_menu(item_id: int, item: MenuItem, background_tasks: BackgroundTasks)
         try:
             response = supabase.table("menu").update({"name": item.name, "price": item.price, "image_url": item.image_url}).eq("id", item_id).execute()
             if not response.data:
-                raise HTTPException(status_code=403, detail="❌ ការកែប្រែត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាព។ សូមចូលទៅបិទ RLS (Disable RLS) លើ Table 'menu' ក្នុង Supabase។")
+                raise HTTPException(status_code=403, detail="❌ ការកែប្រែត្រូវបានរារាំងដោយប្រព័ន្ធសុវត្ថិភាព RLS។ សូមចូលទៅយក 'Service Role Key' ពី Supabase មកដាក់ក្នុងអថេរ SUPABASE_KEY ជំនួស Anon Key ចាស់របស់អ្នក។")
             background_tasks.add_task(broadcast_ws_event, "UPDATE_MENU", item.model_dump())
             return response.data[0]
         except Exception as e:
@@ -1314,7 +1329,7 @@ def reply_crm_message(msg: ChatMessage, background_tasks: BackgroundTasks):
     import time
     from datetime import datetime
     # ផ្ញើទៅកាន់ Telegram របស់អ្នកប្រើប្រាស់
-    requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": msg.chat_id, "text": f"👨‍💼 *Admin:* {msg.text}", "parse_mode": "Markdown"})
+    background_tasks.add_task(send_telegram_sync, msg.chat_id, f"👨‍💼 *Admin:* {msg.text}")
     
     # កត់ត្រាទុកថា Admin ទើបតែបានឆាតជាមួយភ្ញៀវម្នាក់នេះ (ដើម្បីបិទ AI)
     admin_active_chats[msg.chat_id] = time.time()
@@ -1343,7 +1358,7 @@ def get_ai_status(chat_id: str):
     return {"ai_active": True}
 
 @app.post("/api/broadcast")
-def broadcast_message(req: BroadcastRequest):
+def broadcast_message(req: BroadcastRequest, background_tasks: BackgroundTasks):
     # ប្រមូល chat_id ដែលធ្លាប់កុម្ម៉ង់
     chat_ids = set([str(o["chat_id"]) for o in orders_db if o.get("chat_id")])
     if USE_SUPABASE:
@@ -1353,7 +1368,7 @@ def broadcast_message(req: BroadcastRequest):
             
     count = 0
     for cid in chat_ids:
-        requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json={"chat_id": cid, "text": f"📢 *សេចក្តីជូនដំណឹង:*\n{req.text}", "parse_mode": "Markdown"})
+        background_tasks.add_task(send_telegram_sync, cid, f"📢 *សេចក្តីជូនដំណឹង:*\n{req.text}")
         count += 1
     return {"sent": count}
 
