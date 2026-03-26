@@ -109,6 +109,11 @@
         function renderMenu() {
             const container = document.getElementById('menu-container');
             container.innerHTML = '';
+
+            if (!menuData || menuData.length === 0) {
+                container.innerHTML = "<p style='text-align:center;width:100%;padding:20px;font-size:1.1rem;color:#7f8c8d;'>🙏 <strong>សូមអភ័យទោស!</strong><br>ហាងមិនទាន់បានដាក់លក់មុខម្ហូបនៅឡើយទេ។<br><br>🙏 <strong>Sorry!</strong><br>No menu items are available at the moment.</p>";
+                return;
+            }
             
             menuData.forEach(item => {
                 const name = getLocalizedName(item.name);
