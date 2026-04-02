@@ -40,7 +40,8 @@
         tg.expand();
         
         let menuData = [];
-        let cart = {};
+        // រក្សាទុកទិន្នន័យកន្ត្រកទោះបីជាភ្ញៀវបិទកម្មវិធីក៏ដោយ (Persistent Cart Feature)
+        let cart = JSON.parse(localStorage.getItem('cart') || '{}');
 
         // --- Localization ---
         const translations = {
@@ -120,7 +121,7 @@
             }
         }
 
-        tg.MainButton.onClick(checkout);
+        if (tg.MainButton) tg.MainButton.onClick(checkout);
 
         function updateCartUI() {
             let total = 0;
@@ -135,6 +136,9 @@
                 const qtySpan = document.getElementById(`qty-${item.id}`);
                 if (qtySpan) qtySpan.innerText = qty;
             });
+
+            // Save cart to Local Storage automatically
+            localStorage.setItem('cart', JSON.stringify(cart));
 
             document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
             if (itemCount > 0) {
@@ -160,6 +164,8 @@
         function renderMenu() {
             const container = document.getElementById('menu-container');
             container.innerHTML = '';
+            
+            updateCartUI(); // Update UI if there are items from Local Storage
 
             menuData.forEach(item => {
                 const imgUrl = item.image_url ? item.image_url : 'https://via.placeholder.com/150?text=Food';
@@ -225,6 +231,7 @@
                     body: JSON.stringify(payload)
                 });
                 if (res.ok) {
+                    localStorage.removeItem('cart'); // លុបកន្ត្រកចោលពេលកុម្ម៉ង់ជោគជ័យ
                     tg.close();
                 }
             } catch (err) {
