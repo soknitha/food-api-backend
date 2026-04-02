@@ -296,7 +296,8 @@ BOT_LANG_DICT = {
         "status_cancel": "❌ ការកុម្ម៉ង់ត្រូវបានលុបចោល",
         "status_cooking": "🧑‍🍳 កំពុងរៀបចំអាហារ",
         "status_delivering": "🛵 កំពុងដឹកជូន",
-        "status_done": "✅ អាហារត្រូវបានដឹកជូនភ្ញៀវរួចរាល់"
+        "status_done": "✅ អាហារត្រូវបានដឹកជូនភ្ញៀវរួចរាល់",
+        "delivery_fee": "🛵 ថ្លៃដឹកជញ្ជូន"
     },
     "zh": {
         "checkout_initial": "🛒 *请检查您的订单 (Review Order)*\n\n🧾 临时订单号: `{order_id}`\n\n📋 *购物车清单:*\n{formatted_items}\n💰 *小计:* *{total}*\n\n👇 您想自取还是让我们送货？",
@@ -329,7 +330,8 @@ BOT_LANG_DICT = {
         "status_cancel": "❌ 订单已取消",
         "status_cooking": "🧑‍🍳 正在准备食物",
         "status_delivering": "🛵 正在配送",
-        "status_done": "✅ 食物已送达"
+        "status_done": "✅ 食物已送达",
+        "delivery_fee": "🛵 配送费"
     },
     "en": {
         "checkout_initial": "🛒 *Please Review Your Order*\n\n🧾 Temp Invoice No: `{order_id}`\n\n📋 *Cart Items:*\n{formatted_items}\n💰 *Subtotal:* *{total}*\n\n👇 Would you like to pick it up or have it delivered?",
@@ -362,7 +364,8 @@ BOT_LANG_DICT = {
         "status_cancel": "❌ Order Cancelled",
         "status_cooking": "🧑‍🍳 Preparing food",
         "status_delivering": "🛵 Out for delivery",
-        "status_done": "✅ Food delivered"
+        "status_done": "✅ Food delivered",
+        "delivery_fee": "🛵 Delivery Fee"
     }
 }
 
@@ -544,6 +547,9 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
     if not order:
         return
     
+    lang = get_user_lang_from_db(chat_id)
+    texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
+
     new_items = order["items"]
     current_total_str = order["total"].replace("$", "").replace(",", "")
     try:
@@ -552,7 +558,8 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
         current_total = 0.0
     
     if fee > 0:
-        new_items += f"\n🛵 ថ្លៃដឹកជញ្ជូន ({distance:.1f}km) x1 = ${fee:.2f}"
+        fee_text = texts.get("delivery_fee", "🛵 ថ្លៃដឹកជញ្ជូន")
+        new_items += f"\n{fee_text} ({distance:.1f}km) x1 = ${fee:.2f}"
         current_total += fee
         
     new_total_str = f"${current_total:.2f}"
@@ -565,12 +572,6 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
         order["items"] = new_items
         order["total"] = new_total_str
         order["status"] = "ថ្មី (រង់ចាំការបញ្ជាក់)"
-
-    kitchen_id = app_config_db.get("kitchen_group_id")
-    if kitchen_id:
-        formatted_k = format_order_items(order["items"], for_kitchen=True)
-        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (រង់ចាំការបង់ប្រាក់)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n👤 *អតិថិជន:* [{order['customer']}](tg://user?id={chat_id})\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n🛒 *មុខម្ហូប:*\n{formatted_k}"
-        background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
 
     user_phone = "មិនមាន"
     user_loc = "មិនមាន"
@@ -585,11 +586,14 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
                 user_phone = u.get("phone", "មិនមាន")
                 user_loc = u.get("location", "មិនមាន")
 
+    kitchen_id = app_config_db.get("kitchen_group_id")
+    if kitchen_id:
+        formatted_k = format_order_items(order["items"], for_kitchen=True)
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (រង់ចាំការបង់ប្រាក់)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n👤 *អតិថិជន:* [{order['customer']}](tg://user?id={chat_id})\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n🛒 *មុខម្ហូប:*\n{formatted_k}"
+        background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
+
     formatted_items = format_order_items(order["items"])
 
-    lang = get_user_lang_from_db(chat_id)
-    texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
-    
     payment_text = texts["payment_text"].format(
         order_id=order['id'],
         customer=order['customer'],
