@@ -290,7 +290,11 @@ BOT_LANG_DICT = {
         "btn_cash": "💵 ទូទាត់សាច់ប្រាក់ (Cash)",
         "btn_aba": "🏦 ABA Bank",
         "btn_alipay": "🛡️ Alipay",
-        "btn_usdt": "🪙 USDT (BEP20)"
+        "btn_usdt": "🪙 USDT (BEP20)",
+        "status_cancel": "❌ ការកុម្ម៉ង់ត្រូវបានលុបចោល",
+        "status_cooking": "🧑‍🍳 កំពុងរៀបចំអាហារ",
+        "status_delivering": "🛵 កំពុងដឹកជូន",
+        "status_done": "✅ អាហារត្រូវបានដឹកជូនភ្ញៀវរួចរាល់"
     },
     "zh": {
         "checkout_initial": "🛒 *请检查您的订单 (Review Order)*\n\n🧾 临时订单号: `{order_id}`\n\n📋 *购物车清单:*\n{formatted_items}\n💰 *小计:* *{total}*\n\n👇 您想自取还是让我们送货？",
@@ -319,7 +323,11 @@ BOT_LANG_DICT = {
         "btn_cash": "💵 现金支付 (Cash)",
         "btn_aba": "🏦 ABA Bank",
         "btn_alipay": "🛡️ 支付宝 (Alipay)",
-        "btn_usdt": "🪙 USDT (BEP20)"
+        "btn_usdt": "🪙 USDT (BEP20)",
+        "status_cancel": "❌ 订单已取消",
+        "status_cooking": "🧑‍🍳 正在准备食物",
+        "status_delivering": "🛵 正在配送",
+        "status_done": "✅ 食物已送达"
     },
     "en": {
         "checkout_initial": "🛒 *Please Review Your Order*\n\n🧾 Temp Invoice No: `{order_id}`\n\n📋 *Cart Items:*\n{formatted_items}\n💰 *Subtotal:* *{total}*\n\n👇 Would you like to pick it up or have it delivered?",
@@ -348,7 +356,11 @@ BOT_LANG_DICT = {
         "btn_cash": "💵 Cash on Delivery",
         "btn_aba": "🏦 ABA Bank",
         "btn_alipay": "🛡️ Alipay",
-        "btn_usdt": "🪙 USDT (BEP20)"
+        "btn_usdt": "🪙 USDT (BEP20)",
+        "status_cancel": "❌ Order Cancelled",
+        "status_cooking": "🧑‍🍳 Preparing food",
+        "status_delivering": "🛵 Out for delivery",
+        "status_done": "✅ Food delivered"
     }
 }
 
@@ -682,11 +694,23 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
         if order.get("chat_id"):
             lang = get_user_lang_from_db(order["chat_id"])
             texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
-            msg_text = texts["status_update"].format(customer=order['customer'], order_id=order['id'], status=status_update.status)
+            
+            # បកប្រែស្ថានភាពកុម្ម៉ង់ដោយស្វ័យប្រវត្តិ (Smart Status Translation)
+            status_text = status_update.status
+            if "លុបចោល" in status_text:
+                status_text = texts.get("status_cancel", status_text)
+            elif "កំពុងរៀបចំ" in status_text or "ចម្អិន" in status_text:
+                status_text = texts.get("status_cooking", status_text)
+            elif "កំពុងដឹក" in status_text:
+                status_text = texts.get("status_delivering", status_text)
+            elif "រួចរាល់" in status_text or "ប្រគល់" in status_text:
+                status_text = texts.get("status_done", status_text)
+                
+            msg_text = texts["status_update"].format(customer=order['customer'], order_id=order['id'], status=status_text)
             background_tasks.add_task(send_telegram_sync, order["chat_id"], msg_text)
             
         # ---------------- មុខងារ Loyalty Points ---------------- #
-        if status_update.status == "✅ រួចរាល់ (បានប្រគល់)":
+        if status_update.status == "✅ អាហារត្រូវបានដឹកជូនភ្ញៀវរួចរាល់" or status_update.status == "✅ រួចរាល់ (បានប្រគល់)":
             try:
                 total_amount = float(order['total'].replace('$', '').replace(',', ''))
                 points_earned = int(total_amount) # ទិញ ១ ដុល្លារ បាន ១ ពិន្ទុ

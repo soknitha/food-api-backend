@@ -36,7 +36,7 @@ LANG_DICT = {
         "no_text": "⚠️ សូមអភ័យទោស ប្រព័ន្ធរបស់យើងប្រើប្រាស់តែប៊ូតុងបញ្ជាប៉ុណ្ណោះ។ សូមចុច /start ដើម្បីបើកម៉ឺនុយឡើងវិញ។",
         "receipt_ok": "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!*\n\n💰 ចំនួនទឹកប្រាក់បានទូទាត់: *${paid_amount:.2f}*\n\nសូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵 ប្រសិនបើមានចម្ងល់អាចទាក់ទងមកកាន់ Admin តាមរយៈប៊ូតុងខាងក្រោម។",
         "receipt_fail": "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។",
-        "ask_location": "📍 *សូមផ្ញើទីតាំងរបស់អ្នក*\n\n(ចុចប៊ូតុង 📍 ខាងក្រោមដើម្បីផ្ញើ *ទីតាំងបច្ចុប្បន្ន*។ ដើម្បីជ្រើសរើសទីតាំងផ្សេង សូមប្រើសញ្ញា 📎 រួចរើសយក Location) ដើម្បីឱ្យប្រព័ន្ធគណនាថ្លៃដឹកជញ្ជូន។",
+        "ask_location": "📍 *សូមផ្ញើទីតាំងរបស់អ្នក*\n\n(សូមប្រើសញ្ញា 📎 រួចរើសយក Location ដើម្បីកំណត់ទីតាំងលើផែនទីឱ្យបានសុក្រឹត) ដើម្បីឱ្យប្រព័ន្ធគណនាថ្លៃដឹកជញ្ជូន។",
         "loc_received": "✅ ទទួលបានទីតាំង! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រ...",
         "phone_saved": "✅ លេខទូរស័ព្ទត្រូវបានរក្សាទុក!",
         "loc_saved": "✅ ទីតាំងត្រូវបានរក្សាទុក!",
@@ -58,7 +58,7 @@ LANG_DICT = {
         "no_text": "⚠️ 抱歉，本系统仅支持按钮操作。请点击 /start 重新打开菜单。",
         "receipt_ok": "✅ *您的付款已成功！*\n\n💰 已付金额: *${paid_amount:.2f}*\n\n请稍候，您的食物马上就好... 🛵 如果您有任何疑问，请通过下面的按钮联系管理员。",
         "receipt_fail": "⚠️ 您当前没有待付款的订单，或您已经发送过凭证了。",
-        "ask_location": "📍 *请发送您的位置*\n\n(点击下方 📍 按钮发送 *当前位置*。如需选择其他位置，请使用 📎 附件功能选择位置) 以便系统计算运费。",
+        "ask_location": "📍 *请发送您的位置*\n\n(请使用 📎 附件图标并选择位置以精确设置) 以便系统计算运费。",
         "loc_received": "✅ 位置已收到！系统正在准备您的账单...",
         "phone_saved": "✅ 电话号码已保存！",
         "loc_saved": "✅ 位置已保存！",
@@ -80,7 +80,7 @@ LANG_DICT = {
         "no_text": "⚠️ Sorry, our system only accepts button interactions. Please click /start to reopen the menu.",
         "receipt_ok": "✅ *Your payment was successful!*\n\n💰 Amount paid: *${paid_amount:.2f}*\n\nPlease wait a moment for your food... 🛵 If you have any questions, you can contact Admin via the button below.",
         "receipt_fail": "⚠️ You have no pending orders awaiting payment, or you've already sent a receipt.",
-        "ask_location": "📍 *Please send your location*\n\n(Click the 📍 button below to send your *current location*. To pick a different spot, use the 📎 attachment icon and choose Location) for our system to calculate the delivery fee.",
+        "ask_location": "📍 *Please send your location*\n\n(Please use the 📎 attachment icon and choose Location for precise mapping) for our system to calculate the delivery fee.",
         "loc_received": "✅ Location received! The system is preparing your bill...",
         "phone_saved": "✅ Phone number saved!",
         "loc_saved": "✅ Location saved!",
@@ -105,10 +105,7 @@ def get_main_reply_markup(lang):
     btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
     phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
     reply_markup.row(btn_reply_app)
-    reply_markup.row(
-        KeyboardButton(phone_text, request_contact=True),
-        KeyboardButton(texts.get("send_loc_btn", "📍 Location"), request_location=True)
-    )
+    reply_markup.row(KeyboardButton(phone_text, request_contact=True))
     return reply_markup
 
 def get_user_lang(chat_id):
@@ -186,9 +183,7 @@ def show_main_menu(chat_id, lang="km"):
     inline_markup = InlineKeyboardMarkup(row_width=1)
     btn_inline_app = InlineKeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
     btn_support = InlineKeyboardButton(texts["support"], url="https://t.me/XiaoYueXiaoChi")
-    # បន្ថែមប៊ូតុងទី៣ (Link សុទ្ធ) ជាជំនួយបម្រុង ប្រសិនបើទូរស័ព្ទភ្ញៀវមិនគាំទ្រ WebAppInfo
-    btn_fallback = InlineKeyboardButton("🔗 បើកតាម Browser (បើចុចខាងលើមិនដើរ)", url=app_url)
-    inline_markup.add(btn_inline_app, btn_fallback, btn_support)
+    inline_markup.add(btn_inline_app, btn_support)
     
     full_text = f"{texts['welcome']}\n\n{texts['choose']}"
     
@@ -209,8 +204,7 @@ def handle_delivery_choice(call):
             requests.post(f"{config.API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0}, timeout=20)
         elif action == "delivery":
             requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=20)
-            reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-            reply_markup.add(KeyboardButton(texts["send_loc_btn"], request_location=True))
+            reply_markup = get_main_reply_markup(lang)
             bot.send_message(chat_id, texts["ask_location"], reply_markup=reply_markup, parse_mode="Markdown")
         
         bot.delete_message(chat_id, call.message.message_id)
