@@ -494,7 +494,7 @@ def miniapp_checkout(order: OrderCreate, background_tasks: BackgroundTasks):
                 if "🎁" in itm_str or "🛵" in itm_str:
                     formatted_items += f"  {itm_str}\n"
                 else:
-                    formatted_items += f"  🔸 {itm_str}\n"
+                    formatted_items += f"  • {itm_str}\n"
                     
         msg_text = texts["checkout_initial"].format(order_id=new_order['id'], formatted_items=formatted_items, total=new_order['total'])
         background_tasks.add_task(send_telegram_sync, order.chat_id, msg_text, "Markdown", markup)
@@ -573,7 +573,7 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
             if "🎁" in itm_str or "🛵" in itm_str:
                 formatted_items += f"  {itm_str}\n"
             else:
-                formatted_items += f"  ✅ {itm_str}\n"
+                    formatted_items += f"  • {itm_str}\n"
 
     lang = get_user_lang_from_db(chat_id)
     texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
@@ -597,8 +597,21 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
         ]
     }
 
+    # បង្កើតសារថ្មីសម្រាប់បាញ់ទៅ Admin Group ដោយមានភ្ជាប់ Link ទៅកាន់ Profile ភ្ញៀវ
+    admin_alert_text = f"""🔔 *New Order Alert!*
+
+🧾 *លេខវិក្កយបត្រ:* `{order['id']}`
+👤 *អតិថិជន:* [{order['customer']}](tg://user?id={chat_id})
+📞 *លេខទូរស័ព្ទ:* {user_phone}
+📍 *ទីតាំង:* {user_loc}
+
+🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*
+{formatted_items}
+💰 *សរុបប្រាក់ត្រូវបង់:* {order['total']}
+
+👇 *រង់ចាំអតិថិជនជ្រើសរើសវិធីទូទាត់...*"""
     background_tasks.add_task(send_telegram_sync, chat_id, payment_text, "Markdown", markup_dict)
-    background_tasks.add_task(send_telegram_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), f"🔔 *New Order Alert!*\n\n{payment_text}")
+    background_tasks.add_task(send_telegram_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), admin_alert_text, "Markdown")
 
 @app.post("/api/orders/finalize")
 def finalize_order_api(data: FinalizeOrderData, background_tasks: BackgroundTasks):
@@ -979,7 +992,7 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
             f"✅ *ការទូទាត់ប្រាក់ជោគជ័យ!*\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"🧾 *វិក្កយបត្រ:* `{pending_order['id']}`\n"
-            f"👤 *អតិថិជន:* {pending_order['customer']}\n"
+            f"👤 *អតិថិជន:* [{pending_order['customer']}](tg://user?id={pending_order['chat_id']})\n"
             f"🛒 *មុខម្ហូប:*\n{formatted_kitchen_items}"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"💰 *បានទូទាត់:* `${extracted_amount:.2f}`\n"

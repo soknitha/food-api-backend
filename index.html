@@ -36,27 +36,62 @@
     </div>
 
     <script>
-        let tg = window.Telegram.WebApp;
+        const tg = window.Telegram.WebApp;
         tg.expand();
         
         let menuData = [];
         let cart = {};
 
+        // --- Localization ---
+        const translations = {
+            km: {
+                loading: "កំពុងទាញយកម៉ឺនុយ...",
+                error_loading: "❌ មានបញ្ហាក្នុងការទាញយកម៉ឺនុយ។",
+                total: "សរុប",
+                order: "បញ្ជាទិញ",
+                processing: "កំពុងបញ្ជូន...",
+                error_connecting: "មានបញ្ហាក្នុងការភ្ជាប់ទៅកាន់ប្រព័ន្ធ!",
+            },
+            en: {
+                loading: "Loading menu...",
+                error_loading: "❌ Error loading menu.",
+                total: "Total",
+                order: "Order",
+                processing: "Processing...",
+                error_connecting: "Error connecting to the system!",
+            },
+            zh: {
+                loading: "正在加载菜单...",
+                error_loading: "❌ 菜单加载失败。",
+                total: "总计",
+                order: "下单",
+                processing: "处理中...",
+                error_connecting: "系统连接失败！",
+            }
+        };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const lang = urlParams.get('lang') || 'km';
+        const t = (key) => translations[lang]?.[key] || translations['km'][key];
+
+        document.getElementById('menu-container').innerHTML = `<p class="col-span-2 text-center text-gray-500 py-10">${t('loading')}</p>`;
+        document.querySelector('#cart-bar > div > p:nth-child(1)').innerText = t('total');
+        document.querySelector('#cart-bar > button').innerText = t('order');
+
         // Fetch Menu from Backend
         async function fetchMenu() {
             try {
-                let res = await fetch('/api/menu');
+                const res = await fetch('/api/menu');
                 menuData = await res.json();
                 renderMenu();
             } catch (error) {
-                document.getElementById('menu-container').innerHTML = `<p class="col-span-2 text-center text-red-500">❌ Error loading menu.</p>`;
+                document.getElementById('menu-container').innerHTML = `<p class="col-span-2 text-center text-red-500">${t('error_loading')}</p>`;
             }
         }
 
         function updateCartUI() {
             let total = 0;
             let itemCount = 0;
-
             menuData.forEach(item => {
                 let qty = cart[item.id] || 0;
                 if (qty > 0) {
@@ -64,7 +99,7 @@
                     itemCount += qty;
                 }
                 
-                let qtySpan = document.getElementById(`qty-${item.id}`);
+                const qtySpan = document.getElementById(`qty-${item.id}`);
                 if (qtySpan) qtySpan.innerText = qty;
             });
 
@@ -119,10 +154,10 @@
 
             if (orderItems.length === 0) return;
 
-            let customerName = tg.initDataUnsafe?.user?.first_name || "ភ្ញៀវ (Guest)";
-            let chatId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
+            const customerName = tg.initDataUnsafe?.user?.first_name || "ភ្ញៀវ (Guest)";
+            const chatId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
 
-            let payload = {
+            const payload = {
                 customer: customerName,
                 items: orderItems.join(", "),
                 total: `$${total.toFixed(2)}`,
@@ -130,21 +165,21 @@
                 redeem_points: 0
             };
 
-            tg.MainButton.text = "កំពុងបញ្ជូន... (Processing)";
+            tg.MainButton.text = t('processing');
             tg.MainButton.show();
             tg.MainButton.showProgress();
 
             try {
-                let res = await fetch('/api/miniapp/checkout', {
+                const res = await fetch('/api/miniapp/checkout', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
                 if (res.ok) {
-                    tg.close(); // បិទ Mini App ពេលជោគជ័យ
+                    tg.close();
                 }
             } catch (err) {
-                alert("មានបញ្ហាក្នុងការភ្ជាប់ទៅកាន់ប្រព័ន្ធ!");
+                alert(t('error_connecting'));
                 tg.MainButton.hideProgress();
             }
         }
