@@ -42,7 +42,13 @@ LANG_DICT = {
         "loc_saved": "✅ ទីតាំងត្រូវបានរក្សាទុក!",
         "processing": "⏳ កំពុងដំណើរការ...",
         "error": "❌ មានបញ្ហាក្នុងការដំណើរការរូបភាព។",
-        "send_loc_btn": "📍 ផ្ញើទីតាំងរបស់ខ្ញុំ"
+        "send_loc_btn": "📍 ផ្ញើទីតាំងរបស់ខ្ញុំ",
+        "pay_cash": "✅ លោកអ្នកបានជ្រើសរើសការទូទាត់ជាសាច់ប្រាក់ (Cash on Delivery) សម្រាប់វិក្កយបត្រ `{order_id}`។\n🛵 អាហារនឹងរៀបចំដឹកជញ្ជូនទៅកាន់លោកអ្នកឆាប់ៗនេះ។",
+        "pay_aba": "🏦 *ទូទាត់តាម ABA Bank*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *${total_usd:.2f}*\n• ឈ្មោះគណនី: HEM SINATH\n• លេខគណនី: `086599789`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។",
+        "pay_usdt": "🪙 *ទូទាត់តាម USDT (BEP20)*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *{total_usd:.2f} USDT*\n• Network: BNB Smart Chain (BEP20)\n• Address: `{address}` (ចុចដើម្បី Copy)\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។",
+        "pay_alipay": "🛡️ *ទូទាត់តាម Alipay*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *¥{rmb_amount:.2f} RMB* (អត្រា $1 = 7¥)\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។",
+        "qr_warning": "⚠️ ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពរូប QR សូមទូទាត់តាមព័ត៌មានខាងលើ",
+        "inv_not_found": "❌ រកមិនឃើញវិក្កយបត្រនេះទេ។"
     },
     "zh": {
         "welcome": "🌟 *欢迎来到 小月小吃！*\n\n我们为您提供最卫生、高标准的美味佳肴。请享受我们便捷的数字化点餐服务。",
@@ -58,7 +64,13 @@ LANG_DICT = {
         "loc_saved": "✅ 位置已保存！",
         "processing": "⏳ 处理中...",
         "error": "❌ 处理图像时出错。",
-        "send_loc_btn": "📍 发送我的位置"
+        "send_loc_btn": "📍 发送我的位置",
+        "pay_cash": "✅ 您已选择货到付款 (Cash on Delivery) 订单 `{order_id}`。\n🛵 食物马上为您配送。",
+        "pay_aba": "🏦 *ABA 银行支付*\n\n💰 应付金额: *${total_usd:.2f}*\n• 账户名称: HEM SINATH\n• 账号: `086599789`\n\n📸 付款后，请在此发送付款截图。",
+        "pay_usdt": "🪙 *USDT (BEP20) 支付*\n\n💰 应付金额: *{total_usd:.2f} USDT*\n• 网络: BNB Smart Chain (BEP20)\n• 地址: `{address}` (点击复制)\n\n📸 付款后，请在此发送付款截图。",
+        "pay_alipay": "🛡️ *支付宝支付*\n\n💰 应付金额: *¥{rmb_amount:.2f} RMB* (汇率 $1 = 7¥)\n\n📸 付款后，请在此发送付款截图。",
+        "qr_warning": "⚠️ 系统正在更新 QR 图片，请使用上方信息进行支付",
+        "inv_not_found": "❌ 找不到此发票。"
     },
     "en": {
         "welcome": "🌟 *Welcome to Xiao Yue Xiao Chi!*\n\nWe provide a delicious culinary experience with the highest standards of hygiene and quality. Enjoy our seamless digital ordering service.",
@@ -74,7 +86,13 @@ LANG_DICT = {
         "loc_saved": "✅ Location saved!",
         "processing": "⏳ Processing...",
         "error": "❌ An error occurred while processing the image.",
-        "send_loc_btn": "📍 Send My Location"
+        "send_loc_btn": "📍 Send My Location",
+        "pay_cash": "✅ You selected Cash on Delivery for invoice `{order_id}`.\n🛵 Your food will be delivered shortly.",
+        "pay_aba": "🏦 *Pay via ABA Bank*\n\n💰 Amount to pay: *${total_usd:.2f}*\n• Account Name: HEM SINATH\n• Account No: `086599789`\n\n📸 After paying, please send the screenshot here.",
+        "pay_usdt": "🪙 *Pay via USDT (BEP20)*\n\n💰 Amount to pay: *{total_usd:.2f} USDT*\n• Network: BNB Smart Chain (BEP20)\n• Address: `{address}` (Tap to Copy)\n\n📸 After paying, please send the screenshot here.",
+        "pay_alipay": "🛡️ *Pay via Alipay*\n\n💰 Amount to pay: *¥{rmb_amount:.2f} RMB* (Rate $1 = 7¥)\n\n📸 After paying, please send the screenshot here.",
+        "qr_warning": "⚠️ System is updating the QR image, please pay using the info above",
+        "inv_not_found": "❌ Invoice not found."
     }
 }
 
@@ -236,12 +254,12 @@ def handle_admin_status_update(call):
                 print(f"Admin status update error: {e}", file=sys.stderr)
                 bot.answer_callback_query(call.id, "❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ")
 
-def send_payment_qr(chat_id, caption, image_name):
+def send_payment_qr(chat_id, caption, image_name, warning_text):
     try:
         with open(image_name, "rb") as photo:
             bot.send_photo(chat_id, photo, caption=caption, parse_mode="Markdown")
     except Exception:
-        bot.send_message(chat_id, caption + f"\n\n(⚠️ ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពរូប QR `{image_name}` សូមទូទាត់តាមព័ត៌មានខាងលើ)", parse_mode="Markdown")
+        bot.send_message(chat_id, caption + f"\n\n({warning_text} `{image_name}`)", parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pay_'))
 def handle_payment_selection(call):
@@ -250,13 +268,15 @@ def handle_payment_selection(call):
     method = parts[1]
     order_id = parts[2]
     chat_id = str(call.message.chat.id)
+    lang = get_user_lang(chat_id)
+    texts = LANG_DICT.get(lang, LANG_DICT["km"])
     
     bot.answer_callback_query(call.id)
     
     try:
         res = requests.get(f"{config.API_BASE_URL}/order", params={"order_id": order_id}, timeout=10)
         if res.status_code != 200:
-            bot.send_message(chat_id, "❌ រកមិនឃើញវិក្កយបត្រនេះទេ។")
+            bot.send_message(chat_id, texts.get("inv_not_found", "❌ រកមិនឃើញវិក្កយបត្រនេះទេ។"))
             return
             
         order = res.json()
@@ -270,7 +290,7 @@ def handle_payment_selection(call):
 
         if method == "cash":
             requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំការដឹកជញ្ជូន (Cash)"}, timeout=10)
-            bot.send_message(chat_id, f"✅ លោកអ្នកបានជ្រើសរើសការទូទាត់ជាសាច់ប្រាក់ (Cash on Delivery) សម្រាប់វិក្កយបត្រ `{order_id}`។\n🛵 អាហារនឹងរៀបចំដឹកជញ្ជូនទៅកាន់លោកអ្នកឆាប់ៗនេះ។")
+            bot.send_message(chat_id, texts["pay_cash"].format(order_id=order_id))
             # Notify kitchen directly
             admin_msg = f"""🔔 *អតិថិជនជ្រើសរើសទូទាត់សាច់ប្រាក់ (Cash)*
 
@@ -290,26 +310,20 @@ def handle_payment_selection(call):
             
         elif method == "aba":
             requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំវិក្កយបត្រ (ABA)"}, timeout=10)
-            msg = f"🏦 *ទូទាត់តាម ABA Bank*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *${total_usd:.2f}*\n• ឈ្មោះគណនី: HEM SINATH\n• លេខគណនី: `086599789`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។"
-            send_payment_qr(chat_id, msg, "aba_qr.jpg")
+            msg = texts["pay_aba"].format(total_usd=total_usd)
+            send_payment_qr(chat_id, msg, "aba_qr.jpg", texts["qr_warning"])
             
         elif method == "usdt":
             requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំវិក្កយបត្រ (USDT)"}, timeout=10)
             address = "0xfd3359717d6b3af1fe25aa0edbc0b5e60f977d41"
-            msg = f"""🪙 *ទូទាត់តាម USDT (BEP20)*
-
-💰 ទឹកប្រាក់ត្រូវបង់: *{total_usd:.2f} USDT*
-• Network: BNB Smart Chain (BEP20)
-• Address: `{address}` (ចុចដើម្បី Copy)
-
-📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។"""
-            send_payment_qr(chat_id, msg, "USDT_BSC.jpg")
+            msg = texts["pay_usdt"].format(total_usd=total_usd, address=address)
+            send_payment_qr(chat_id, msg, "USDT_BSC.jpg", texts["qr_warning"])
             
         elif method == "alipay":
             requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំវិក្កយបត្រ (Alipay)"}, timeout=10)
             rmb_amount = total_usd * 7
-            msg = f"🛡️ *ទូទាត់តាម Alipay*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *¥{rmb_amount:.2f} RMB* (អត្រា $1 = 7¥)\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។"
-            send_payment_qr(chat_id, msg, "Alipay_QR.jpg")
+            msg = texts["pay_alipay"].format(rmb_amount=rmb_amount)
+            send_payment_qr(chat_id, msg, "Alipay_QR.jpg", texts["qr_warning"])
             
     except Exception as e:
         print(f"Payment selection error: {e}")

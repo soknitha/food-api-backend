@@ -286,7 +286,11 @@ BOT_LANG_DICT = {
         "ai_error": "មានបញ្ហាក្នុងការស្កេនវិក្កយបត្រ សូមសាកល្បងម្ដងទៀត។",
         "payment_reject_user": "⚠️ *ការទូទាត់ត្រូវបានបដិសេធ!*\n\nមូលហេតុ: {reason}\n\nសូមថតរូបវិក្កយបត្រឱ្យបានច្បាស់ រួចផ្ញើម្ដងទៀត ឬទាក់ទងមកកាន់ Admin។",
         "ai_error_scan": "ប្រព័ន្ធមិនអាចអានចំនួនទឹកប្រាក់ពីរូបភាពនេះបានទេ។ សូមថតឱ្យបានច្បាស់។",
-        "ai_error_amount": "ចំនួនទឹកប្រាក់មិនគ្រប់គ្រាន់ (បានបង់: ${paid:.2f} / ត្រូវបង់: ${expected:.2f})។"
+        "ai_error_amount": "ចំនួនទឹកប្រាក់មិនគ្រប់គ្រាន់ (បានបង់: ${paid:.2f} / ត្រូវបង់: ${expected:.2f})។",
+        "btn_cash": "💵 ទូទាត់សាច់ប្រាក់ (Cash)",
+        "btn_aba": "🏦 ABA Bank",
+        "btn_alipay": "🛡️ Alipay",
+        "btn_usdt": "🪙 USDT (BEP20)"
     },
     "zh": {
         "checkout_initial": "🛒 *请检查您的订单 (Review Order)*\n\n🧾 临时订单号: `{order_id}`\n\n📋 *购物车清单:*\n{formatted_items}\n💰 *小计:* *{total}*\n\n👇 您想自取还是让我们送货？",
@@ -311,7 +315,11 @@ BOT_LANG_DICT = {
         "ai_error": "扫描收据时出错。请重试。",
         "payment_reject_user": "⚠️ *付款被拒绝！*\n\n原因: {reason}\n\n请清晰拍照并重试，或联系管理员。",
         "ai_error_scan": "系统无法从此图像中读取金额。请重新拍摄清晰的照片。",
-        "ai_error_amount": "付款金额不足（已付: ${paid:.2f} / 应付: ${expected:.2f}）。"
+        "ai_error_amount": "付款金额不足（已付: ${paid:.2f} / 应付: ${expected:.2f}）。",
+        "btn_cash": "💵 现金支付 (Cash)",
+        "btn_aba": "🏦 ABA Bank",
+        "btn_alipay": "🛡️ 支付宝 (Alipay)",
+        "btn_usdt": "🪙 USDT (BEP20)"
     },
     "en": {
         "checkout_initial": "🛒 *Please Review Your Order*\n\n🧾 Temp Invoice No: `{order_id}`\n\n📋 *Cart Items:*\n{formatted_items}\n💰 *Subtotal:* *{total}*\n\n👇 Would you like to pick it up or have it delivered?",
@@ -336,7 +344,11 @@ BOT_LANG_DICT = {
         "ai_error": "Error scanning receipt. Please try again.",
         "payment_reject_user": "⚠️ *Payment Rejected!*\n\nReason: {reason}\n\nPlease take a clear photo and try again, or contact Admin.",
         "ai_error_scan": "The system could not read the amount from this image. Please take a clear photo.",
-        "ai_error_amount": "Insufficient payment amount (Paid: ${paid:.2f} / Expected: ${expected:.2f})."
+        "ai_error_amount": "Insufficient payment amount (Paid: ${paid:.2f} / Expected: ${expected:.2f}).",
+        "btn_cash": "💵 Cash on Delivery",
+        "btn_aba": "🏦 ABA Bank",
+        "btn_alipay": "🛡️ Alipay",
+        "btn_usdt": "🪙 USDT (BEP20)"
     }
 }
 
@@ -576,10 +588,10 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
     
     markup_dict = {
         "inline_keyboard": [
-            [{"text": "💵 ទូទាត់សាច់ប្រាក់ (Cash)", "callback_data": f"pay_cash_{order['id']}"}],
-            [{"text": "🏦 ABA Bank", "callback_data": f"pay_aba_{order['id']}"},
-             {"text": "🛡️ Alipay", "callback_data": f"pay_alipay_{order['id']}"}],
-            [{"text": "🪙 USDT (BEP20)", "callback_data": f"pay_usdt_{order['id']}"}]
+            [{"text": texts.get("btn_cash", "💵 Cash"), "callback_data": f"pay_cash_{order['id']}"}],
+            [{"text": texts.get("btn_aba", "🏦 ABA Bank"), "callback_data": f"pay_aba_{order['id']}"},
+             {"text": texts.get("btn_alipay", "🛡️ Alipay"), "callback_data": f"pay_alipay_{order['id']}"}],
+            [{"text": texts.get("btn_usdt", "🪙 USDT (BEP20)"), "callback_data": f"pay_usdt_{order['id']}"}]
         ]
     }
 
