@@ -48,7 +48,9 @@ LANG_DICT = {
         "pay_usdt": "🪙 *ទូទាត់តាម USDT (BEP20)*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *{total_usd:.2f} USDT*\n• Network: BNB Smart Chain (BEP20)\n• Address: `{address}` (ចុចដើម្បី Copy)\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។",
         "pay_alipay": "🛡️ *ទូទាត់តាម Alipay*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *¥{rmb_amount:.2f} RMB* (អត្រា $1 = 7¥)\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។",
         "qr_warning": "⚠️ ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពរូប QR សូមទូទាត់តាមព័ត៌មានខាងលើ",
-        "inv_not_found": "❌ រកមិនឃើញវិក្កយបត្រនេះទេ។"
+        "inv_not_found": "❌ រកមិនឃើញវិក្កយបត្រនេះទេ។",
+        "send_phone_btn": "📱 បញ្ជូនលេខទូរស័ព្ទ",
+        "continue_order": "👇 លោកអ្នកអាចបន្តការកុម្ម៉ង់ផ្សេងៗទៀតនៅខាងក្រោម៖"
     },
     "zh": {
         "welcome": "🌟 *欢迎来到 小月小吃！*\n\n我们为您提供最卫生、高标准的美味佳肴。请享受我们便捷的数字化点餐服务。",
@@ -70,7 +72,9 @@ LANG_DICT = {
         "pay_usdt": "🪙 *USDT (BEP20) 支付*\n\n💰 应付金额: *{total_usd:.2f} USDT*\n• 网络: BNB Smart Chain (BEP20)\n• 地址: `{address}` (点击复制)\n\n📸 付款后，请在此发送付款截图。",
         "pay_alipay": "🛡️ *支付宝支付*\n\n💰 应付金额: *¥{rmb_amount:.2f} RMB* (汇率 $1 = 7¥)\n\n📸 付款后，请在此发送付款截图。",
         "qr_warning": "⚠️ 系统正在更新 QR 图片，请使用上方信息进行支付",
-        "inv_not_found": "❌ 找不到此发票。"
+        "inv_not_found": "❌ 找不到此发票。",
+        "send_phone_btn": "📱 发送电话",
+        "continue_order": "👇 您可以在下方继续点单："
     },
     "en": {
         "welcome": "🌟 *Welcome to Xiao Yue Xiao Chi!*\n\nWe provide a delicious culinary experience with the highest standards of hygiene and quality. Enjoy our seamless digital ordering service.",
@@ -92,7 +96,9 @@ LANG_DICT = {
         "pay_usdt": "🪙 *Pay via USDT (BEP20)*\n\n💰 Amount to pay: *{total_usd:.2f} USDT*\n• Network: BNB Smart Chain (BEP20)\n• Address: `{address}` (Tap to Copy)\n\n📸 After paying, please send the screenshot here.",
         "pay_alipay": "🛡️ *Pay via Alipay*\n\n💰 Amount to pay: *¥{rmb_amount:.2f} RMB* (Rate $1 = 7¥)\n\n📸 After paying, please send the screenshot here.",
         "qr_warning": "⚠️ System is updating the QR image, please pay using the info above",
-        "inv_not_found": "❌ Invoice not found."
+        "inv_not_found": "❌ Invoice not found.",
+        "send_phone_btn": "📱 Send Phone",
+        "continue_order": "👇 You can continue ordering below:"
     }
 }
 
@@ -103,7 +109,7 @@ def get_main_reply_markup(lang):
     app_url = f"{config.MINI_APP_URL}?lang={lang}&v={int(time.time())}"
     reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="👇 សូមចុចប៊ូតុងនៅទីនេះ...")
     btn_reply_app = KeyboardButton(texts["order_app"], web_app=WebAppInfo(url=app_url))
-    phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
+    phone_text = texts.get("send_phone_btn", "📱 Send Phone")
     reply_markup.row(btn_reply_app)
     reply_markup.row(KeyboardButton(phone_text, request_contact=True))
     return reply_markup
@@ -204,7 +210,10 @@ def handle_delivery_choice(call):
             requests.post(f"{config.API_BASE_URL}/orders/finalize", json={"order_id": order_id, "chat_id": chat_id, "delivery_fee": 0, "distance": 0}, timeout=20)
         elif action == "delivery":
             requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំទីតាំង"}, timeout=20)
-            reply_markup = get_main_reply_markup(lang)
+            # លុបប៊ូតុង Order Food ចេញពេលកំពុងទាមទារទីតាំង ដើម្បីកុំឱ្យភ្ញៀវច្រឡំចុច
+            loc_btn_text = texts.get("send_loc_btn", "📍 ផ្ញើទីតាំងរបស់ខ្ញុំ")
+            reply_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            reply_markup.row(KeyboardButton(loc_btn_text, request_location=True))
             bot.send_message(chat_id, texts["ask_location"], reply_markup=reply_markup, parse_mode="Markdown")
         
         bot.delete_message(chat_id, call.message.message_id)
@@ -254,7 +263,7 @@ def send_payment_qr(chat_id, caption, image_name, warning_text):
         with open(file_path, "rb") as photo:
             bot.send_photo(chat_id, photo, caption=caption, parse_mode="Markdown")
     except Exception:
-        bot.send_message(chat_id, caption + f"\n\n(⚠️ ប្រព័ន្ធមិនអាចទាញយករូបភាពបានទេ សូមទូទាត់តាមព័ត៌មានខាងលើ)", parse_mode="Markdown")
+        bot.send_message(chat_id, caption + f"\n\n({warning_text})", parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pay_'))
 def handle_payment_selection(call):
@@ -355,7 +364,8 @@ def handle_location(message):
         
     try:
         res = requests.post(f"{config.API_BASE_URL}/orders/process_location", json={"chat_id": chat_id, "lat": lat, "lon": lon}, timeout=20)
-        reply_markup = get_main_reply_markup(lang)
+        # លាក់ប៊ូតុងផ្ញើទីតាំងចេញវិញ ដើម្បីឱ្យទំព័រស្អាតមានតែ Inline Keyboard
+        reply_markup = telebot.types.ReplyKeyboardRemove()
         if res.status_code == 200 and "ok" in res.json().get("status", ""):
             bot.send_message(chat_id, texts["loc_received"], reply_markup=reply_markup)
         else:
@@ -377,18 +387,13 @@ def handle_payment_screenshot(message):
             paid_amount = response.json().get("paid_amount", 0.0)
             reply_text = texts["receipt_ok"].format(paid_amount=paid_amount)
             
-            support_btn_text = "🎧 ផ្នែកបម្រើអតិថិជន (Support)"
-            if lang == "zh":
-                support_btn_text = "🎧 客服支持 (Support)"
-            elif lang == "en":
-                support_btn_text = "🎧 Customer Support"
-                
+            support_btn_text = texts.get("support", "🎧 Customer Support")
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton(support_btn_text, url="https://t.me/XiaoYueXiaoChi"))
             bot.reply_to(message, reply_text, parse_mode="Markdown", reply_markup=markup)
             
-            # បង្ហាញប៊ូតុងទាំង ៣ ឡើងវិញដោយប្រើសារណែនាំត្រឹមត្រូវជាជាង "✅"
-            bot.send_message(message.chat.id, "👇 លោកអ្នកអាចបន្តការកុម្ម៉ង់ផ្សេងៗទៀតនៅខាងក្រោម៖", reply_markup=get_main_reply_markup(lang))
+            # បង្ហាញប៊ូតុងម៉ឺនុយឡើងវិញតាមភាសា
+            bot.send_message(message.chat.id, texts.get("continue_order", "👇"), reply_markup=get_main_reply_markup(lang))
         else:
             reason = response.json().get("reason", texts["receipt_fail"])
             bot.reply_to(message, reason, parse_mode="Markdown")
@@ -402,7 +407,8 @@ def handle_text_messages(message):
     chat_id = str(message.chat.id)
     
     # ចាប់យកការចុចប៊ូតុងម៉ឺនុយ (Reply Keyboard) ពេល WebApp មិនដំណើរការ (ឧទាហរណ៍ លើ Desktop)
-    if message.text in ["📱 កុម្ម៉ង់អាហារ (Order Food)", "📱 小月小吃的菜单", "📱 Order Food"]:
+    order_app_texts = [LANG_DICT[l]["order_app"] for l in LANG_DICT]
+    if message.text in order_app_texts:
         show_main_menu(chat_id, get_user_lang(chat_id))
         return
 

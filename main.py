@@ -297,7 +297,13 @@ BOT_LANG_DICT = {
         "status_cooking": "🧑‍🍳 កំពុងរៀបចំអាហារ",
         "status_delivering": "🛵 កំពុងដឹកជូន",
         "status_done": "✅ អាហារត្រូវបានដឹកជូនភ្ញៀវរួចរាល់",
-        "delivery_fee": "🛵 ថ្លៃដឹកជញ្ជូន"
+        "delivery_fee": "🛵 ថ្លៃដឹកជញ្ជូន",
+        "status_wait_location": "រង់ចាំទីតាំង",
+        "status_wait_cash": "រង់ចាំការដឹកជញ្ជូន (Cash)",
+        "status_wait_aba": "រង់ចាំវិក្កយបត្រ (ABA)",
+        "status_wait_alipay": "រង់ចាំវិក្កយបត្រ (Alipay)",
+        "status_wait_usdt": "រង់ចាំវិក្កយបត្រ (USDT)",
+        "status_paid": "បានទូទាត់ប្រាក់ (Paid)"
     },
     "zh": {
         "checkout_initial": "🛒 *请检查您的订单 (Review Order)*\n\n🧾 临时订单号: `{order_id}`\n\n📋 *购物车清单:*\n{formatted_items}\n💰 *小计:* *{total}*\n\n👇 您想自取还是让我们送货？",
@@ -331,7 +337,13 @@ BOT_LANG_DICT = {
         "status_cooking": "🧑‍🍳 正在准备食物",
         "status_delivering": "🛵 正在配送",
         "status_done": "✅ 食物已送达",
-        "delivery_fee": "🛵 配送费"
+        "delivery_fee": "🛵 配送费",
+        "status_wait_location": "等待位置信息",
+        "status_wait_cash": "等待配送 (Cash)",
+        "status_wait_aba": "等待凭证 (ABA)",
+        "status_wait_alipay": "等待凭证 (Alipay)",
+        "status_wait_usdt": "等待凭证 (USDT)",
+        "status_paid": "已付款 (Paid)"
     },
     "en": {
         "checkout_initial": "🛒 *Please Review Your Order*\n\n🧾 Temp Invoice No: `{order_id}`\n\n📋 *Cart Items:*\n{formatted_items}\n💰 *Subtotal:* *{total}*\n\n👇 Would you like to pick it up or have it delivered?",
@@ -365,7 +377,13 @@ BOT_LANG_DICT = {
         "status_cooking": "🧑‍🍳 Preparing food",
         "status_delivering": "🛵 Out for delivery",
         "status_done": "✅ Food delivered",
-        "delivery_fee": "🛵 Delivery Fee"
+        "delivery_fee": "🛵 Delivery Fee",
+        "status_wait_location": "Waiting for location",
+        "status_wait_cash": "Waiting for delivery (Cash)",
+        "status_wait_aba": "Waiting for receipt (ABA)",
+        "status_wait_alipay": "Waiting for receipt (Alipay)",
+        "status_wait_usdt": "Waiting for receipt (USDT)",
+        "status_paid": "Paid"
     }
 }
 
@@ -711,6 +729,18 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
                 status_text = texts.get("status_delivering", status_text)
             elif "រួចរាល់" in status_text or "ប្រគល់" in status_text:
                 status_text = texts.get("status_done", status_text)
+            elif "រង់ចាំទីតាំង" in status_text:
+                status_text = texts.get("status_wait_location", status_text)
+            elif "រង់ចាំការដឹកជញ្ជូន" in status_text and "Cash" in status_text:
+                status_text = texts.get("status_wait_cash", status_text)
+            elif "រង់ចាំវិក្កយបត្រ" in status_text and "ABA" in status_text:
+                status_text = texts.get("status_wait_aba", status_text)
+            elif "រង់ចាំវិក្កយបត្រ" in status_text and "Alipay" in status_text:
+                status_text = texts.get("status_wait_alipay", status_text)
+            elif "រង់ចាំវិក្កយបត្រ" in status_text and "USDT" in status_text:
+                status_text = texts.get("status_wait_usdt", status_text)
+            elif "បានទូទាត់ប្រាក់" in status_text or "Paid" in status_text:
+                status_text = texts.get("status_paid", status_text)
                 
             msg_text = texts["status_update"].format(customer=order['customer'], order_id=order['id'], status=status_text)
             background_tasks.add_task(send_telegram_sync, order["chat_id"], msg_text)
