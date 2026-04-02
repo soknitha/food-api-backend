@@ -26,10 +26,13 @@
 
     <!-- Bottom Floating Cart -->
     <div class="fixed bottom-0 w-full bg-white border-t border-gray-200 p-4 shadow-lg flex justify-between items-center" id="cart-bar" style="display: none;">
-        <div class="w-full text-center">
+        <div>
             <p class="text-sm text-gray-500" id="cart-lbl">សរុប (Total)</p>
-            <p class="text-xl font-bold text-red-600" id="cart-total">$0.00</p>
+            <p class="text-lg font-bold text-red-600" id="cart-total">$0.00</p>
         </div>
+        <button onclick="checkout()" class="bg-red-600 text-white px-6 py-2 rounded-full font-bold shadow-md hover:bg-red-700 transition" id="checkout-btn">
+            បញ្ជាទិញ (Order)
+        </button>
     </div>
 
     <script>
@@ -136,11 +139,14 @@
             document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
             if (itemCount > 0) {
                 document.getElementById('cart-bar').style.display = 'flex';
-                tg.MainButton.text = `${t('order')} - $${total.toFixed(2)}`;
-                tg.MainButton.show();
+                document.getElementById('checkout-btn').innerText = `${t('order')} - $${total.toFixed(2)}`;
+                if (tg.MainButton && tg.MainButton.isVisible !== undefined) {
+                    tg.MainButton.text = `${t('order')} - $${total.toFixed(2)}`;
+                    tg.MainButton.show();
+                }
             } else {
                 document.getElementById('cart-bar').style.display = 'none';
-                tg.MainButton.hide();
+                if (tg.MainButton && tg.MainButton.isVisible !== undefined) tg.MainButton.hide();
             }
         }
 
@@ -205,8 +211,12 @@
                 redeem_points: 0
             };
 
-            tg.MainButton.text = t('processing');
-            tg.MainButton.showProgress();
+            document.getElementById('checkout-btn').innerText = t('processing');
+            document.getElementById('checkout-btn').disabled = true;
+            if (tg.MainButton && tg.MainButton.isVisible !== undefined) {
+                tg.MainButton.text = t('processing');
+                tg.MainButton.showProgress();
+            }
 
             try {
                 const res = await fetch('/api/miniapp/checkout', {
@@ -219,7 +229,8 @@
                 }
             } catch (err) {
                 alert(t('error_connecting'));
-                tg.MainButton.hideProgress();
+                if (tg.MainButton && tg.MainButton.isVisible !== undefined) tg.MainButton.hideProgress();
+                document.getElementById('checkout-btn').disabled = false;
                 updateCartUI(); // Reset button UI
             }
         }

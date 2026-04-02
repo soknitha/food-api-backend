@@ -250,10 +250,11 @@ def handle_admin_status_update(call):
 
 def send_payment_qr(chat_id, caption, image_name, warning_text):
     try:
-        with open(image_name, "rb") as photo:
+        file_path = os.path.join(os.path.dirname(__file__), image_name)
+        with open(file_path, "rb") as photo:
             bot.send_photo(chat_id, photo, caption=caption, parse_mode="Markdown")
     except Exception:
-        bot.send_message(chat_id, caption + f"\n\n({warning_text} `{image_name}`)", parse_mode="Markdown")
+        bot.send_message(chat_id, caption + f"\n\n(⚠️ ប្រព័ន្ធមិនអាចទាញយករូបភាពបានទេ សូមទូទាត់តាមព័ត៌មានខាងលើ)", parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('pay_'))
 def handle_payment_selection(call):
@@ -321,6 +322,7 @@ def handle_payment_selection(call):
             
     except Exception as e:
         print(f"Payment selection error: {e}")
+        bot.send_message(chat_id, "❌ មានបញ្ហាក្នុងការភ្ជាប់ទៅកាន់ប្រព័ន្ធ សូមទាក់ទង Admin។")
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):

@@ -223,9 +223,11 @@ class MenuReorderItem(BaseModel):
 # ---------------- មុខងារជំនួយសម្រាប់បាញ់សារទៅ Telegram លឿនដូចផ្លេកបន្ទោរ (Async Background Tasks) ---------------- #
 def send_telegram_sync(chat_id, text, parse_mode="Markdown", reply_markup=None):
     try:
+        import json
         payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
         if reply_markup:
-            payload["reply_markup"] = reply_markup
+            # ធានាថា Telegram យល់ពី Inline Keyboard 100% ទោះបីជាប្រើប្រព័ន្ធណាក៏ដោយ
+            payload["reply_markup"] = json.dumps(reply_markup) if isinstance(reply_markup, dict) else reply_markup
         requests.post(f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage", json=payload, timeout=10)
     except Exception as e:
         print(f"⚠️ Telegram sending error: {e}")
