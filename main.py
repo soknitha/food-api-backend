@@ -243,6 +243,24 @@ def send_telegram_photo_sync(chat_id, caption, photo_path, parse_mode="Markdown"
     except Exception as e:
         print(f"⚠️ Telegram photo sending error: {e}")
 
+# ---------------- Helper: តម្រៀបបញ្ជីមុខម្ហូបជាលេខរៀង និងស្អាត ---------------- #
+def format_order_items(items_str, for_kitchen=False):
+    raw_items = items_str.split("\n")
+    if len(raw_items) <= 1 and "," in items_str:
+        raw_items = items_str.split(",")
+    formatted = ""
+    counter = 1
+    for itm in raw_items:
+        itm_str = itm.strip()
+        if itm_str:
+            if "🎁" in itm_str or "🛵" in itm_str:
+                formatted += f"  {itm_str}\n"
+            else:
+                prefix = "  ☑️ " if for_kitchen else f"  {counter}. "
+                formatted += f"{prefix}{itm_str}\n"
+                counter += 1
+    return formatted
+
 # ---------------- វចនានុក្រមភាសាសម្រាប់រាល់សាររបស់ Bot (Bot Localization) ---------------- #
 BOT_LANG_DICT = {
     "km": {
@@ -428,15 +446,7 @@ def create_order(order: OrderCreate, background_tasks: BackgroundTasks):
     # បាញ់សារទៅ Group ផ្ទះបាយ
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
-        raw_items = new_order["items"].split(",")
-        formatted_k = ""
-        for itm in raw_items:
-            itm_str = itm.strip()
-            if itm_str:
-                if "🎁" in itm_str or "🛵" in itm_str:
-                    formatted_k += f"  {itm_str}\n"
-                else:
-                    formatted_k += f"  ☑️ {itm_str}\n"
+        formatted_k = format_order_items(new_order["items"], for_kitchen=True)
         kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
         background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
         
@@ -486,15 +496,7 @@ def miniapp_checkout(order: OrderCreate, background_tasks: BackgroundTasks):
             ]
         }
         
-        raw_items = new_order["items"].split(",")
-        formatted_items = ""
-        for itm in raw_items:
-            itm_str = itm.strip()
-            if itm_str:
-                if "🎁" in itm_str or "🛵" in itm_str:
-                    formatted_items += f"  {itm_str}\n"
-                else:
-                    formatted_items += f"  • {itm_str}\n"
+        formatted_items = format_order_items(new_order["items"])
                     
         msg_text = texts["checkout_initial"].format(order_id=new_order['id'], formatted_items=formatted_items, total=new_order['total'])
         background_tasks.add_task(send_telegram_sync, order.chat_id, msg_text, "Markdown", markup)
@@ -524,7 +526,7 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
         current_total = 0.0
     
     if fee > 0:
-        new_items += f", 🛵 ថ្លៃដឹកជញ្ជូន ({distance:.1f}km) x1 (${fee:.2f})"
+        new_items += f"\n🛵 ថ្លៃដឹកជញ្ជូន ({distance:.1f}km) x1 = ${fee:.2f}"
         current_total += fee
         
     new_total_str = f"${current_total:.2f}"
@@ -540,15 +542,7 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
 
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
-        raw_items_k = order["items"].split(",")
-        formatted_k = ""
-        for itm in raw_items_k:
-            itm_str = itm.strip()
-            if itm_str:
-                if "🎁" in itm_str or "🛵" in itm_str:
-                    formatted_k += f"  {itm_str}\n"
-                else:
-                    formatted_k += f"  ☑️ {itm_str}\n"
+        formatted_k = format_order_items(order["items"], for_kitchen=True)
         kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (រង់ចាំការបង់ប្រាក់)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
         background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
 
@@ -565,15 +559,7 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
                 user_phone = u.get("phone", "មិនមាន")
                 user_loc = u.get("location", "មិនមាន")
 
-    raw_items = order["items"].split(",")
-    formatted_items = ""
-    for itm in raw_items:
-        itm_str = itm.strip()
-        if itm_str:
-            if "🎁" in itm_str or "🛵" in itm_str:
-                formatted_items += f"  {itm_str}\n"
-            else:
-                    formatted_items += f"  • {itm_str}\n"
+    formatted_items = format_order_items(order["items"])
 
     lang = get_user_lang_from_db(chat_id)
     texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
@@ -752,36 +738,37 @@ def get_single_order(order_id: str):
             if o["id"] == order_id: return o
     raise HTTPException(status_code=404, detail="Order not found")
 
+@app.get("/api/receipt/{order_id}")
+def get_receipt_image_api(order_id: str, lang: str = "km"):
+    order = get_single_order(order_id)
+    img_bytes = generate_receipt_image(order, order.get("total", "0").replace("$", ""), lang)
+    return Response(content=img_bytes, media_type="image/png")
+
 def generate_receipt_image(order_data, amount_paid, lang="km"):
-    """ Generates a highly professional POS-style PNG receipt image based on user's language. (High Definition - Retina Ready) """
+    """ Generates an 80mm Thermal Receipt POS-style PNG. """
     try:
         from PIL import Image, ImageDraw, ImageFont
         import io
         from datetime import datetime
         
         texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
-        items_list = [item.strip() for item in order_data["items"].split(",") if item.strip()]
+        items_str = order_data.get("items", "")
+        raw_items = items_str.split("\n")
+        if len(raw_items) <= 1 and "," in items_str:
+            raw_items = items_str.split(",")
+        items_list = [item.strip() for item in raw_items if item.strip()]
         
-        # បង្កើនគុណភាពរូបភាព ២ ដង (High Resolution - Retina Display)
         scale = 2
-        width = 500 * scale
-        base_height = 600 * scale
+        width = 576 * scale # 1152px សម្រាប់ខ្នាតព្រីន 80mm ម៉ត់ច្បាស់
+        margin = 40 * scale
+        
+        base_height = 650 * scale
         height = base_height + (len(items_list) * 50 * scale)
         
-        # ពណ៌ទូទៅ (Modern Colors Design)
-        bg_color = (245, 247, 250)      # ពណ៌ផ្ទៃខាងក្រោយរាងប្រផេះស្រាល
-        card_color = (255, 255, 255)    # ពណ៌សន្លឹកវិក្កយបត្រ
-        text_main = (33, 37, 41)        # ពណ៌អក្សរគោល (ខ្មៅចាស់)
-        text_muted = (108, 117, 125)    # ពណ៌អក្សរបន្ទាប់បន្សំ (ប្រផេះ)
-        primary_color = (39, 174, 96)   # ពណ៌បៃតងបញ្ជាក់ការទូទាត់
-        border_color = (226, 232, 240)  # ពណ៌បន្ទាត់ខណ្ឌ
-        
+        bg_color = (255, 255, 255)
+        text_main = (0, 0, 0)
         img = Image.new('RGB', (width, height), color=bg_color)
         d = ImageDraw.Draw(img)
-        
-        # គូសផ្ទៃកាតវិក្កយបត្រពណ៌សកណ្តាលមានកែងមូល (Modern Card Style)
-        margin = 25 * scale
-        d.rounded_rectangle([(margin, margin), (width - margin, height - margin)], radius=15*scale, fill=card_color, outline=border_color, width=2*scale)
         
         zh_font_path = config.KHMER_FONT_PATH.replace("Khmer", "SC")
         active_font_path = zh_font_path if lang == "zh" else config.KHMER_FONT_PATH
@@ -789,11 +776,11 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
             active_font_path = config.KHMER_FONT_PATH
         
         try:
-            font_shop = ImageFont.truetype(active_font_path, 36 * scale)
-            font_title = ImageFont.truetype(active_font_path, 28 * scale)
-            font_bold = ImageFont.truetype(active_font_path, 22 * scale)
-            font_text = ImageFont.truetype(active_font_path, 20 * scale)
-            font_small = ImageFont.truetype(active_font_path, 16 * scale)
+            font_shop = ImageFont.truetype(active_font_path, 46 * scale)
+            font_title = ImageFont.truetype(active_font_path, 32 * scale)
+            font_bold = ImageFont.truetype(active_font_path, 26 * scale)
+            font_text = ImageFont.truetype(active_font_path, 24 * scale)
+            font_small = ImageFont.truetype(active_font_path, 20 * scale)
         except Exception as e:
             print(f"⚠️  Font Error: {e}. Falling back to default font.", file=sys.stderr)
             font_shop = font_title = font_text = font_bold = font_small = ImageFont.load_default()
@@ -806,71 +793,77 @@ def generate_receipt_image(order_data, amount_paid, lang="km"):
                 w = d.textlength(text_val, font=f_type)
             d.text(((width - w) / 2, y_pos), text_val, fill=fill, font=f_type)
             
-        def draw_divider(y_pos):
-            d.line([(margin * 1.5, y_pos), (width - margin * 1.5, y_pos)], fill=border_color, width=2*scale)
+        def draw_dashed_line(y_pos):
+            dash_len = 10 * scale
+            space_len = 8 * scale
+            for x in range(int(margin), int(width - margin), dash_len + space_len):
+                d.line([(x, y_pos), (x + dash_len, y_pos)], fill=text_main, width=2*scale)
             
-        def draw_row(y_pos, left_text, right_text, f_type_left, f_type_right, fill_left=text_muted, fill_right=text_main):
-            d.text((margin * 1.5, y_pos), left_text, fill=fill_left, font=f_type_left)
-            try: w = d.textbbox((0, 0), right_text, font=f_type_right)[2]
-            except AttributeError: w = d.textlength(right_text, font=f_type_right)
-            d.text((width - margin * 1.5 - w, y_pos), right_text, fill=fill_right, font=f_type_right)
+        def draw_row(y_pos, left_text, right_text, f_type, fill=text_main):
+            d.text((margin, y_pos), left_text, fill=fill, font=f_type)
+            try: w = d.textbbox((0, 0), right_text, font=f_type)[2]
+            except AttributeError: w = d.textlength(right_text, font=f_type)
+            d.text((width - margin - w, y_pos), right_text, fill=fill, font=f_type)
 
         # --- Header ---
-        y = margin + 35 * scale
+        y = 30 * scale
         draw_centered(y, texts["receipt_shop"], font_shop)
-        y += 60 * scale
-        
-        # Badge "PAID" រចនាបែបទំនើប (Modern Dynamic Badge)
-        paid_text = texts.get("receipt_footer", "*** PAID ***").replace("*", "").strip()
-        try: bw = d.textbbox((0, 0), paid_text, font=font_small)[2]
-        except AttributeError: bw = d.textlength(paid_text, font=font_small)
-        badge_x1 = (width - bw - 40*scale) / 2
-        badge_x2 = badge_x1 + bw + 40*scale
-        d.rounded_rectangle([(badge_x1, y), (badge_x2, y + 35*scale)], radius=17*scale, fill=(233, 247, 239))
-        draw_centered(y + 6*scale, paid_text, font_small, fill=primary_color)
-        
         y += 70 * scale
-        draw_divider(y)
-        y += 30 * scale
+        draw_centered(y, texts["receipt_title"], font_title)
+        y += 50 * scale
+        draw_dashed_line(y)
+        y += 40 * scale
 
         # --- Info ---
-        draw_row(y, texts["receipt_invoice"], str(order_data['id']), font_text, font_bold)
-        y += 40 * scale
-        draw_row(y, texts["receipt_date"], datetime.now().strftime('%d/%m/%Y %H:%M'), font_text, font_bold)
-        y += 40 * scale
-        draw_row(y, texts["receipt_customer"], str(order_data['customer']), font_text, font_bold)
+        draw_row(y, texts["receipt_invoice"], str(order_data['id']), font_text)
         y += 50 * scale
+        draw_row(y, texts["receipt_date"], datetime.now().strftime('%d/%m/%Y %H:%M'), font_text)
+        y += 50 * scale
+        draw_row(y, texts["receipt_customer"], str(order_data['customer']), font_text)
+        y += 60 * scale
         
-        draw_divider(y)
-        y += 30 * scale
+        draw_dashed_line(y)
+        y += 40 * scale
         
         # --- Items ---
-        d.text((margin * 1.5, y), texts["receipt_items"], fill=text_main, font=font_bold)
-        y += 50 * scale
+        draw_row(y, texts["receipt_items"], "តម្លៃ/Price", font_bold)
+        y += 60 * scale
         
         for idx, item in enumerate(items_list):
-            max_chars = 45 # អនុញ្ញាតឱ្យឈ្មោះមុខម្ហូបចេញវែងជាងមុន
-            display_item = item if len(item) <= max_chars else item[:max_chars-3] + "..."
-            d.text((margin * 1.5, y), f"{idx+1}.  {display_item}", fill=text_main, font=font_text)
-            y += 45 * scale
+            if "=" in item:
+                parts = item.split("=")
+                left = f"{idx+1}. {parts[0].strip()}"
+                right = parts[1].strip()
+            else:
+                left = f"{idx+1}. {item}"
+                right = ""
             
-        y += 10 * scale
-        draw_divider(y)
-        y += 35 * scale
+            if len(left) > 35: left = left[:32] + "..."
+            draw_row(y, left, right, font_text)
+            y += 50 * scale
+            
+        y += 20 * scale
+        draw_dashed_line(y)
+        y += 40 * scale
         
         # --- Totals ---
         tot_val = str(order_data['total'])
-        draw_row(y, texts["receipt_total"], tot_val, font_bold, font_shop)
+        draw_row(y, texts["receipt_total"], tot_val, font_bold)
         y += 65 * scale
 
-        paid_val = f"${float(amount_paid):.2f}"
-        draw_row(y, texts["receipt_paid"], paid_val, font_text, font_bold, fill_right=primary_color)
+        paid_val = f"${float(amount_paid):.2f}" if float(amount_paid) > 0 else "N/A"
+        draw_row(y, texts["receipt_paid"], paid_val, font_text)
         y += 65 * scale
         
-        draw_divider(y)
-        y += 40 * scale
+        draw_dashed_line(y)
+        y += 50 * scale
         
-        draw_centered(y, texts["receipt_thanks"], font_text, fill=text_muted)
+        footer_text = texts.get("receipt_footer", "*** PAID ***")
+        if "Cash" in str(order_data.get("status", "")):
+            footer_text = "*** CASH ON DELIVERY ***"
+        draw_centered(y, footer_text, font_bold)
+        y += 50 * scale
+        draw_centered(y, texts["receipt_thanks"], font_small)
         
         bio = io.BytesIO()
         img.save(bio, format="PNG", optimize=True)
@@ -977,16 +970,7 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
         pending_order["receipt_url"] = data.image_url
         background_tasks.add_task(broadcast_ws_event, "UPDATE_ORDER", pending_order)
         
-        # រៀបចំមុខម្ហូបជាលេខរៀងចុះបន្ទាត់ (Numbered List) ឱ្យផ្ទះបាយមើលងាយស្រួល
-        raw_items = pending_order['items'].split(",")
-        formatted_kitchen_items = ""
-        for itm in raw_items:
-            itm_str = itm.strip()
-            if itm_str:
-                if "🎁" in itm_str or "🛵" in itm_str:
-                    formatted_kitchen_items += f"  {itm_str}\n"
-                else:
-                    formatted_kitchen_items += f"  ☑️ {itm_str}\n"
+        formatted_kitchen_items = format_order_items(pending_order["items"], for_kitchen=True)
                 
         admin_msg = (
             f"✅ *ការទូទាត់ប្រាក់ជោគជ័យ!*\n"
@@ -1004,8 +988,9 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
         admin_group = app_config_db.get("kitchen_group_id", "-1003740329904")
         markup_dict = {
             "inline_keyboard": [
-                [{"text": "🧑‍🍳 កំពុងចម្អិន", "callback_data": f"admin_status_cooking_{pending_order['id']}"}, {"text": "🛵 កំពុងដឹកជញ្ជូន", "callback_data": f"admin_status_delivering_{pending_order['id']}"}],
-                [{"text": "✅ ប្រគល់ជោគជ័យ (បញ្ចប់)", "callback_data": f"admin_status_done_{pending_order['id']}"}]
+                [{"text": "❌ លុបចោល (Cancel)", "callback_data": f"admin_status_cancel_{pending_order['id']}"}],
+                [{"text": "🧑‍🍳 កំពុងរៀបចំ", "callback_data": f"admin_status_cooking_{pending_order['id']}"}, {"text": "🛵 កំពុងដឹកជូន", "callback_data": f"admin_status_delivering_{pending_order['id']}"}],
+                [{"text": "✅ ដឹកជញ្ជូនរួចរាល់", "callback_data": f"admin_status_done_{pending_order['id']}"}]
             ]
         }
         

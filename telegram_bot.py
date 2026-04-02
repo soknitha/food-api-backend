@@ -214,9 +214,10 @@ def handle_admin_status_update(call):
     if len(parts) == 4:
         _, _, action, order_id = parts
         status_map = {
-            "cooking": "កំពុងចម្អិន",
-            "delivering": "កំពុងដឹកជញ្ជូន",
-            "done": "✅ រួចរាល់ (បានប្រគល់)"
+            "cancel": "❌ ការកុម្ម៉ង់ត្រូវបានលុបចោល",
+            "cooking": "🧑‍🍳 កំពុងរៀបចំអាហារ",
+            "delivering": "🛵 កំពុងដឹកជូន",
+            "done": "✅ អាហារត្រូវបានដឹកជូនភ្ញៀវរួចរាល់"
         }
         new_status = status_map.get(action)
         if new_status:
@@ -276,7 +277,14 @@ def handle_payment_selection(call):
 🧾 វិក្កយបត្រ: `{order_id}`
 👤 អតិថិជន: {customer_name}
 🛵 សូមរៀបចំដឹកជញ្ជូន!"""
-            bot.send_message(admin_group, admin_msg, parse_mode="Markdown")
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("❌ លុបចោល (Cancel)", callback_data=f"admin_status_cancel_{order_id}"))
+            markup.row(
+                InlineKeyboardButton("🧑‍🍳 កំពុងរៀបចំ", callback_data=f"admin_status_cooking_{order_id}"),
+                InlineKeyboardButton("🛵 កំពុងដឹកជូន", callback_data=f"admin_status_delivering_{order_id}")
+            )
+            markup.add(InlineKeyboardButton("✅ ដឹកជញ្ជូនរួចរាល់", callback_data=f"admin_status_done_{order_id}"))
+            bot.send_message(admin_group, admin_msg, parse_mode="Markdown", reply_markup=markup)
             try: bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
             except: pass
             

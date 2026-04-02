@@ -78,6 +78,21 @@
         document.querySelector('#cart-bar > div > p:nth-child(1)').innerText = t('total');
         document.querySelector('#cart-bar > button').innerText = t('order');
 
+        // --- Smart Localization for Item Names ---
+        function getLocalizedText(text, lang) {
+            if (!text) return "";
+            if (text.includes('|')) { // Format: ខ្មែរ|中文|English
+                const parts = text.split('|');
+                if (lang === 'km' && parts.length > 0) return parts[0].trim();
+                if (lang === 'zh' && parts.length > 1) return parts[1].trim();
+                if (lang === 'en' && parts.length > 2) return parts[2].trim();
+                return parts[0].trim();
+            }
+            const match = text.match(/^(.*?)\s*\((.*?)\)$/); // Format: ខ្មែរ (English)
+            if (match) return lang === 'km' ? match[1].trim() : match[2].trim();
+            return text;
+        }
+
         // Fetch Menu from Backend
         async function fetchMenu() {
             try {
@@ -121,12 +136,13 @@
             menuData.forEach(item => {
                 const imgUrl = item.image_url ? item.image_url : 'https://via.placeholder.com/150?text=Food';
                 const card = document.createElement('div');
+                const locName = getLocalizedText(item.name, lang);
                 card.className = "bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col";
                 
                 card.innerHTML = `
                     <div class="h-32 w-full bg-cover bg-center" style="background-image: url('${imgUrl}');"></div>
                     <div class="p-3 flex flex-col flex-grow justify-between">
-                        <h3 class="font-bold text-sm leading-tight text-gray-800">${item.name}</h3>
+                        <h3 class="font-bold text-sm leading-tight text-gray-800">${locName}</h3>
                         <p class="text-red-600 font-semibold mt-1">$${item.price.toFixed(2)}</p>
                         
                         <div class="flex items-center justify-between mt-3">
@@ -147,8 +163,10 @@
             menuData.forEach(item => {
                 let qty = cart[item.id] || 0;
                 if (qty > 0) {
-                    orderItems.push(`${item.name} x${qty}`);
-                    total += item.price * qty;
+                    const locName = getLocalizedText(item.name, lang);
+                    const itemTotal = item.price * qty;
+                    orderItems.push(`${locName} x${qty} = $${itemTotal.toFixed(2)}`);
+                    total += itemTotal;
                 }
             });
 
@@ -159,7 +177,7 @@
 
             const payload = {
                 customer: customerName,
-                items: orderItems.join(", "),
+                items: orderItems.join("\n"),
                 total: `$${total.toFixed(2)}`,
                 chat_id: chatId,
                 redeem_points: 0
