@@ -26,13 +26,10 @@
 
     <!-- Bottom Floating Cart -->
     <div class="fixed bottom-0 w-full bg-white border-t border-gray-200 p-4 shadow-lg flex justify-between items-center" id="cart-bar" style="display: none;">
-        <div>
-            <p class="text-sm text-gray-500">សរុប (Total)</p>
-            <p class="text-lg font-bold text-red-600" id="cart-total">$0.00</p>
+        <div class="w-full text-center">
+            <p class="text-sm text-gray-500" id="cart-lbl">សរុប (Total)</p>
+            <p class="text-xl font-bold text-red-600" id="cart-total">$0.00</p>
         </div>
-        <button onclick="checkout()" class="bg-red-600 text-white px-6 py-2 rounded-full font-bold shadow-md hover:bg-red-700 transition">
-            បញ្ជាទិញ (Order)
-        </button>
     </div>
 
     <script>
@@ -71,12 +68,28 @@
         };
 
         const urlParams = new URLSearchParams(window.location.search);
-        const lang = urlParams.get('lang') || 'km';
-        const t = (key) => translations[lang]?.[key] || translations['km'][key];
+        let lang = urlParams.get('lang') || 'km';
+        let t = (key) => translations[lang]?.[key] || translations['km'][key];
 
-        document.getElementById('menu-container').innerHTML = `<p class="col-span-2 text-center text-gray-500 py-10">${t('loading')}</p>`;
-        document.querySelector('#cart-bar > div > p:nth-child(1)').innerText = t('total');
-        document.querySelector('#cart-bar > button').innerText = t('order');
+        // --- Smart Language Synchronization 100% ---
+        async function initializeApp() {
+            const chatId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
+            if (chatId) {
+                try {
+                    const userRes = await fetch(`/api/users/${chatId}`);
+                    if (userRes.ok) {
+                        const userData = await userRes.json();
+                        if (userData && userData.language) {
+                            lang = userData.language;
+                            t = (key) => translations[lang]?.[key] || translations['km'][key];
+                        }
+                    }
+                } catch(e) {}
+            }
+            document.getElementById('menu-container').innerHTML = `<p class="col-span-2 text-center text-gray-500 py-10">${t('loading')}</p>`;
+            document.getElementById('cart-lbl').innerText = t('total');
+            fetchMenu();
+        }
 
         // --- Smart Localization for Item Names ---
         function getLocalizedText(text, lang) {
@@ -104,6 +117,8 @@
             }
         }
 
+        tg.MainButton.onClick(checkout);
+
         function updateCartUI() {
             let total = 0;
             let itemCount = 0;
@@ -119,7 +134,14 @@
             });
 
             document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
-            document.getElementById('cart-bar').style.display = itemCount > 0 ? 'flex' : 'none';
+            if (itemCount > 0) {
+                document.getElementById('cart-bar').style.display = 'flex';
+                tg.MainButton.text = `${t('order')} - $${total.toFixed(2)}`;
+                tg.MainButton.show();
+            } else {
+                document.getElementById('cart-bar').style.display = 'none';
+                tg.MainButton.hide();
+            }
         }
 
         function changeQty(id, delta) {
@@ -184,7 +206,6 @@
             };
 
             tg.MainButton.text = t('processing');
-            tg.MainButton.show();
             tg.MainButton.showProgress();
 
             try {
@@ -199,10 +220,11 @@
             } catch (err) {
                 alert(t('error_connecting'));
                 tg.MainButton.hideProgress();
+                updateCartUI(); // Reset button UI
             }
         }
 
-        fetchMenu();
+        initializeApp();
     </script>
 </body>
 </html>

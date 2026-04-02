@@ -399,6 +399,11 @@ def handle_payment_screenshot(message):
 def handle_text_messages(message):
     chat_id = str(message.chat.id)
     
+    # ចាប់យកការចុចប៊ូតុងម៉ឺនុយ (Reply Keyboard) ពេល WebApp មិនដំណើរការ (ឧទាហរណ៍ លើ Desktop)
+    if message.text in ["📱 កុម្ម៉ង់អាហារ (Order Food)", "📱 小月小吃的菜单", "📱 Order Food"]:
+        show_main_menu(chat_id, get_user_lang(chat_id))
+        return
+
     # 1. ត្រួតពិនិត្យមើលថាតើជាសាររបស់ Admin ឆ្លើយតបទៅភ្ញៀវចេញពីក្នុង Group ដែរឬទេ
     if chat_id == "-1003740329904" or message.chat.id < 0:
         if message.reply_to_message and message.reply_to_message.text and "👉 សូម Reply ត្រឡប់មកកាន់សារនេះ" in message.reply_to_message.text:

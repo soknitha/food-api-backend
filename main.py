@@ -471,7 +471,7 @@ def create_order(order: OrderCreate, background_tasks: BackgroundTasks):
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
         formatted_k = format_order_items(new_order["items"], for_kitchen=True)
-        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (ពី Telegram Bot)*\n\n🧾 *វិក្កយបត្រ:* `{new_order['id']}`\n *អតិថិជន:* [{new_order['customer']}](tg://user?id={new_order['chat_id']})\n🛒 *មុខម្ហូប:*\n{formatted_k}"
         background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
         
     background_tasks.add_task(broadcast_ws_event, "NEW_ORDER", new_order)
@@ -567,7 +567,7 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
     kitchen_id = app_config_db.get("kitchen_group_id")
     if kitchen_id:
         formatted_k = format_order_items(order["items"], for_kitchen=True)
-        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (រង់ចាំការបង់ប្រាក់)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n🛒 *មុខម្ហូប:*\n{formatted_k}"
+        kitchen_msg = f"🧑‍🍳 *មានការកុម្ម៉ង់ថ្មី (រង់ចាំការបង់ប្រាក់)*\n\n🧾 *វិក្កយបត្រ:* `{order['id']}`\n👤 *អតិថិជន:* [{order['customer']}](tg://user?id={chat_id})\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n🛒 *មុខម្ហូប:*\n{formatted_k}"
         background_tasks.add_task(send_telegram_sync, kitchen_id, kitchen_msg)
 
     user_phone = "មិនមាន"
