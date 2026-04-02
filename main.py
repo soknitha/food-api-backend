@@ -249,7 +249,7 @@ BOT_LANG_DICT = {
         "checkout_initial": "🛒 *សូមពិនិត្យមើលកន្ត្រករបស់អ្នក (Cart Review)*\n\n🧾 វិក្កយបត្របណ្ដោះអាសន្ន: `{order_id}`\n\n📋 *បញ្ជីមុខម្ហូប:*\n{formatted_items}\n💰 *សរុបបណ្ដោះអាសន្ន:* *{total}*\n\n👇 តើលោកអ្នកចង់មកយកផ្ទាល់ ឬឱ្យហាងដឹកជូន?",
         "pickup_btn": "🏪 មកយកផ្ទាល់នៅហាង (Pickup)",
         "delivery_btn": "🛵 ហាងដឹកជូនផ្ទាល់ (Delivery)",
-        "payment_text": "🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n🧾 *លេខវិក្កយបត្រ:* `{order_id}`\n👤 *អតិថិជន:* {customer}\n📱 *គណនី Telegram:* {chat_id}\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n\n🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*\n{formatted_items}\n💰 *សរុបប្រាក់ត្រូវបង់:* {total}\n\n💳 *សូមធ្វើការទូទាត់ប្រាក់មកកាន់គណនី ABA & ACLEDA ខាងក្រោម៖*\n• ឈ្មោះគណនី៖ {aba_name}\n• លេខគណនី៖ `{aba_number}`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ ដើម្បីឱ្យយើងរៀបចំអាហារជូនអ្នកភ្លាមៗ។",
+        "payment_text": "🎉 *ការកុម្ម៉ង់ទទួលបានជោគជ័យ!*\n\n🧾 *លេខវិក្កយបត្រ:* `{order_id}`\n👤 *អតិថិជន:* {customer}\n📱 *គណនី Telegram:* {chat_id}\n📞 *លេខទូរស័ព្ទ:* {user_phone}\n📍 *ទីតាំង:* {user_loc}\n\n🛒 *មុខម្ហូបដែលបានកុម្ម៉ង់:*\n{formatted_items}\n💰 *សរុបប្រាក់ត្រូវបង់:* {total}\n\n👇 *សូមជ្រើសរើសវិធីសាស្ត្រទូទាត់ប្រាក់ (Payment Method)៖*",
         "payment_success_user": "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!*\n\n💰 ចំនួនទឹកប្រាក់បានទូទាត់: *${paid_amount:.2f}*\n\nសូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵 ប្រសិនបើមានចម្ងល់អាចទាក់ទងមកកាន់ Admin តាមរយៈប៊ូតុងខាងក្រោម។",
         "status_update": "🔔 *ជម្រាបសួរ {customer}*\nការកុម្ម៉ង់លេខ {order_id} របស់អ្នកត្រូវបានប្តូរស្ថានភាពទៅជា៖ *{status}*",
         "points_earned": "🎁 *អបអរសាទរ!* អ្នកទទួលបាន *{points} ពិន្ទុសន្សំ* ពីការទិញនេះ។\nបច្ចុប្បន្នអ្នកមានពិន្ទុសរុប៖ *{new_points} ពិន្ទុ* 🌟",
@@ -274,7 +274,7 @@ BOT_LANG_DICT = {
         "checkout_initial": "🛒 *请检查您的订单 (Review Order)*\n\n🧾 临时订单号: `{order_id}`\n\n📋 *购物车清单:*\n{formatted_items}\n💰 *小计:* *{total}*\n\n👇 您想自取还是让我们送货？",
         "pickup_btn": "🏪 到店自取 (Pickup)",
         "delivery_btn": "🛵 商店配送 (Delivery)",
-        "payment_text": "🎉 *下单成功！*\n\n🧾 *订单编号:* `{order_id}`\n👤 *客户:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *电话:* {user_phone}\n📍 *位置:* {user_loc}\n\n🛒 *已点菜品:*\n{formatted_items}\n💰 *总计:* {total}\n\n💳 *请向以下 ABA 或 ACLEDA 账户付款：*\n• 账户名称：{aba_name}\n• 账号：`{aba_number}`\n\n📸 付款后，请在此发送付款截图，以便我们立即为您准备食物。",
+        "payment_text": "🎉 *下单成功！*\n\n🧾 *订单编号:* `{order_id}`\n👤 *客户:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *电话:* {user_phone}\n📍 *位置:* {user_loc}\n\n🛒 *已点菜品:*\n{formatted_items}\n💰 *总计:* {total}\n\n👇 *请选择付款方式 (Payment Method)：*",
         "payment_success_user": "✅ *您的付款已成功！*\n\n💰 已付金额: *${paid_amount:.2f}*\n\n请稍候，您的食物马上就好... 🛵 如果您有任何疑问，请通过下面的按钮联系管理员。",
         "status_update": "🔔 *您好 {customer}*\n您的订单 {order_id} 状态已更新为：*{status}*",
         "points_earned": "🎁 *恭喜！* 您从此次购买中获得了 *{points} 积分*。\n您当前的总积分为：*{new_points} 分* 🌟",
@@ -299,7 +299,7 @@ BOT_LANG_DICT = {
         "checkout_initial": "🛒 *Please Review Your Order*\n\n🧾 Temp Invoice No: `{order_id}`\n\n📋 *Cart Items:*\n{formatted_items}\n💰 *Subtotal:* *{total}*\n\n👇 Would you like to pick it up or have it delivered?",
         "pickup_btn": "🏪 Store Pickup",
         "delivery_btn": "🛵 Store Delivery",
-        "payment_text": "🎉 *Order Placed Successfully!*\n\n🧾 *Invoice No:* `{order_id}`\n👤 *Customer:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *Phone:* {user_phone}\n📍 *Location:* {user_loc}\n\n🛒 *Ordered Items:*\n{formatted_items}\n💰 *Total Due:* {total}\n\n💳 *Please make a payment to the ABA & ACLEDA account below:*\n• Account Name: {aba_name}\n• Account Number: `{aba_number}`\n\n📸 After payment, please send the receipt screenshot here so we can prepare your food immediately.",
+        "payment_text": "🎉 *Order Placed Successfully!*\n\n🧾 *Invoice No:* `{order_id}`\n👤 *Customer:* {customer}\n📱 *Telegram:* {chat_id}\n📞 *Phone:* {user_phone}\n📍 *Location:* {user_loc}\n\n🛒 *Ordered Items:*\n{formatted_items}\n💰 *Total Due:* {total}\n\n👇 *Please select a Payment Method:*",
         "payment_success_user": "✅ *Your payment was successful!*\n\n💰 Amount paid: *${paid_amount:.2f}*\n\nPlease wait a moment for your food... 🛵 If you have any questions, you can contact Admin via the button below.",
         "status_update": "🔔 *Hello {customer}*\nYour order {order_id} status has been updated to: *{status}*",
         "points_earned": "🎁 *Congratulations!* You earned *{points} points* from this purchase.\nYour current total points: *{new_points} points* 🌟",
@@ -577,8 +577,6 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
 
     lang = get_user_lang_from_db(chat_id)
     texts = BOT_LANG_DICT.get(lang, BOT_LANG_DICT["km"])
-    aba_name = app_config_db.get("aba_name", "HEM SINATH")
-    aba_number = app_config_db.get("aba_number", "086599789")
     
     payment_text = texts["payment_text"].format(
         order_id=order['id'],
@@ -587,35 +585,20 @@ def finalize_order_internal(order_id, chat_id, fee, background_tasks: Background
         user_phone=user_phone,
         user_loc=user_loc,
         formatted_items=formatted_items,
-        total=order['total'],
-        aba_name=aba_name,
-        aba_number=aba_number
+        total=order['total']
     )
     
-    # បង្កើតប៊ូតុងម៉ឺនុយ (Reply Keyboard) ជា JSON ផ្ទាល់ដើម្បីភ្ជាប់ទៅជាមួយវិក្កយបត្រ (Smart Method)
-    import json
-    app_url = f"{config.MINI_APP_URL}?lang={lang}"
-    phone_text = "📱 បញ្ជូនលេខទូរស័ព្ទ" if lang == "km" else "📱 发送电话" if lang == "zh" else "📱 Send Phone"
-    loc_text = texts.get("send_loc_btn", "📍 Location")
-    reply_markup_dict = {
-        "keyboard": [
-            [{"text": texts.get("order_app", "📱 កុម្ម៉ង់អាហារ (Order Food)"), "web_app": {"url": app_url}}],
-            [{"text": phone_text, "request_contact": True}, {"text": loc_text, "request_location": True}]
-        ],
-        "resize_keyboard": True,
-        "input_field_placeholder": "👇 សូមចុចប៊ូតុងនៅទីនេះ..."
+    markup_dict = {
+        "inline_keyboard": [
+            [{"text": "💵 ទូទាត់សាច់ប្រាក់ (Cash)", "callback_data": f"pay_cash_{order['id']}"}],
+            [{"text": "🏦 ABA Bank", "callback_data": f"pay_aba_{order['id']}"},
+             {"text": "🛡️ Alipay", "callback_data": f"pay_alipay_{order['id']}"}],
+            [{"text": "🪙 USDT (BEP20)", "callback_data": f"pay_usdt_{order['id']}"}]
+        ]
     }
-    rm_json = json.dumps(reply_markup_dict)
 
-    qr_path = os.path.join(os.path.dirname(__file__), "aba_qr.jpg")
-    if os.path.exists(qr_path):
-        # បង្កប់ Keyboard ទៅក្នុងសារវិក្កយបត្រដោយផ្ទាល់ ដើម្បីកុំឱ្យផ្ញើសាររំខានច្រើនតង់
-        background_tasks.add_task(send_telegram_photo_sync, chat_id, payment_text, qr_path, "Markdown", rm_json)
-        background_tasks.add_task(send_telegram_photo_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), f"🔔 *New Order Alert!*\n\n{payment_text}", qr_path, "Markdown", None)
-    else:
-        # បម្រុងទុក (Fallback)៖ បើសិនជាបាត់រូប aba_qr.jpg ក៏វានៅតែបាញ់អត្ថបទវិក្កយបត្រទៅដែរ
-        background_tasks.add_task(send_telegram_sync, chat_id, payment_text, "Markdown", reply_markup_dict)
-        background_tasks.add_task(send_telegram_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), f"🔔 *New Order Alert!*\n\n{payment_text}")
+    background_tasks.add_task(send_telegram_sync, chat_id, payment_text, "Markdown", markup_dict)
+    background_tasks.add_task(send_telegram_sync, app_config_db.get("kitchen_group_id", "-1003740329904"), f"🔔 *New Order Alert!*\n\n{payment_text}")
 
 @app.post("/api/orders/finalize")
 def finalize_order_api(data: FinalizeOrderData, background_tasks: BackgroundTasks):
@@ -745,6 +728,16 @@ def update_order_status(status_update: OrderStatusUpdate, background_tasks: Back
                 
         return {"message": "Status updated successfully", "order": order}
     return {"error": "Order not found"}
+
+@app.get("/api/order")
+def get_single_order(order_id: str):
+    if USE_SUPABASE:
+        res = supabase.table("orders").select("*").eq("id", order_id).execute()
+        if res.data: return res.data[0]
+    else:
+        for o in orders_db:
+            if o["id"] == order_id: return o
+    raise HTTPException(status_code=404, detail="Order not found")
 
 def generate_receipt_image(order_data, amount_paid, lang="km"):
     """ Generates a highly professional POS-style PNG receipt image based on user's language. (High Definition - Retina Ready) """
@@ -879,12 +872,12 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
     # ស្វែងរកការកុម្ម៉ង់ដែលកំពុងរង់ចាំ (Pending Order)
     pending_order = None
     if USE_SUPABASE:
-        res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).eq("status", "ថ្មី (រង់ចាំការបញ្ជាក់)").order("created_at", desc=True).limit(1).execute()
-        if res.data:
+        res = supabase.table("orders").select("*").eq("chat_id", data.chat_id).order("created_at", desc=True).limit(1).execute()
+        if res.data and ("រង់ចាំ" in res.data[0]["status"] or "ថ្មី" in res.data[0]["status"]) and "Cash" not in res.data[0]["status"]:
             pending_order = res.data[0]
     else:
         for order in reversed(orders_db):
-            if str(order.get("chat_id")) == str(data.chat_id) and order.get("status") == "ថ្មី (រង់ចាំការបញ្ជាក់)":
+            if str(order.get("chat_id")) == str(data.chat_id) and ("រង់ចាំ" in order.get("status", "") or "ថ្មី" in order.get("status", "")) and "Cash" not in order.get("status", ""):
                 pending_order = order
                 break
                 
@@ -897,6 +890,11 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
         expected_total = float(expected_total_str)
     except Exception:
         expected_total = 0.0
+
+    # កំណត់អត្រាទឹកប្រាក់ផ្អែកតាមប្រភេទនៃការទូទាត់ (Alipay 1:7)
+    is_alipay = "Alipay" in pending_order["status"]
+    if is_alipay:
+        expected_total = expected_total * 7
 
     user_lang = get_user_lang_from_db(data.chat_id)
     lang_texts = BOT_LANG_DICT.get(user_lang, BOT_LANG_DICT["km"])
@@ -916,8 +914,8 @@ def upload_receipt(data: OrderReceipt, background_tasks: BackgroundTasks):
             img_data = requests.get(data.image_url).content
             
             prompt = f"""
-            You are a highly precise payment verification AI. Analyze this ABA/ACLEDA bank receipt screenshot.
-            Extract these exact values carefully: Total Amount Paid (number only), Account Name (string), Trx. ID or Reference Number (string).
+            You are a highly precise payment verification AI. Analyze this payment receipt screenshot (ABA, USDT, or Alipay).
+            Extract these exact values carefully: Total Amount Paid (number only, ignore currency symbols like $, ៛, USDT, ¥), Account Name or Sender Info (string), Trx. ID or Reference Number (string).
             Return ONLY a valid JSON object in this format (no markdown):
             {{"extracted_amount": 15.50, "trx_id": "123456789", "account_name": "HEM SINATH"}}
             """

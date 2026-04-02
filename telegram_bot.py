@@ -36,7 +36,7 @@ LANG_DICT = {
         "no_text": "⚠️ សូមអភ័យទោស ប្រព័ន្ធរបស់យើងប្រើប្រាស់តែប៊ូតុងបញ្ជាប៉ុណ្ណោះ។ សូមចុច /start ដើម្បីបើកម៉ឺនុយឡើងវិញ។",
         "receipt_ok": "✅ *ការទូទាត់របស់អ្នកទទួលបានជោគជ័យ!*\n\n💰 ចំនួនទឹកប្រាក់បានទូទាត់: *${paid_amount:.2f}*\n\nសូមរង់ចាំអាហាររបស់អ្នកបន្តិច... 🛵 ប្រសិនបើមានចម្ងល់អាចទាក់ទងមកកាន់ Admin តាមរយៈប៊ូតុងខាងក្រោម។",
         "receipt_fail": "⚠️ អ្នកមិនមានការបញ្ជាទិញដែលកំពុងរង់ចាំការបង់ប្រាក់ទេ ឬអ្នកបានផ្ញើវិក្កយបត្ររួចហើយ។",
-        "ask_location": "📍 *សូមផ្ញើទីតាំងរបស់អ្នក* ដើម្បីឱ្យប្រព័ន្ធគណនាថ្លៃដឹកជញ្ជូន។",
+        "ask_location": "📍 *សូមផ្ញើទីតាំងរបស់អ្នក*\n\n(លោកអ្នកអាចចុចប៊ូតុង 📍 ខាងក្រោម សម្រាប់ការចាប់ទីតាំងផ្ទាល់ ឬប្រើសញ្ញា 📎 រួចរើសយក Location ដើម្បីកំណត់ទីតាំងលើផែនទីដោយខ្លួនឯងបានយ៉ាងសុក្រឹត) ដើម្បីឱ្យប្រព័ន្ធគណនាថ្លៃដឹកជញ្ជូន។",
         "loc_received": "✅ ទទួលបានទីតាំង! ប្រព័ន្ធកំពុងរៀបចំវិក្កយបត្រ...",
         "phone_saved": "✅ លេខទូរស័ព្ទត្រូវបានរក្សាទុក!",
         "loc_saved": "✅ ទីតាំងត្រូវបានរក្សាទុក!",
@@ -52,7 +52,7 @@ LANG_DICT = {
         "no_text": "⚠️ 抱歉，本系统仅支持按钮操作。请点击 /start 重新打开菜单。",
         "receipt_ok": "✅ *您的付款已成功！*\n\n💰 已付金额: *${paid_amount:.2f}*\n\n请稍候，您的食物马上就好... 🛵 如果您有任何疑问，请通过下面的按钮联系管理员。",
         "receipt_fail": "⚠️ 您当前没有待付款的订单，或您已经发送过凭证了。",
-        "ask_location": "📍 *请发送您的位置* 以便系统计算运费。",
+        "ask_location": "📍 *请发送您的位置*\n\n(您可以点击下方按钮，或使用 📎 附件功能选择位置以在地图上精确选择) 以便系统计算运费。",
         "loc_received": "✅ 位置已收到！系统正在准备您的账单...",
         "phone_saved": "✅ 电话号码已保存！",
         "loc_saved": "✅ 位置已保存！",
@@ -68,7 +68,7 @@ LANG_DICT = {
         "no_text": "⚠️ Sorry, our system only accepts button interactions. Please click /start to reopen the menu.",
         "receipt_ok": "✅ *Your payment was successful!*\n\n💰 Amount paid: *${paid_amount:.2f}*\n\nPlease wait a moment for your food... 🛵 If you have any questions, you can contact Admin via the button below.",
         "receipt_fail": "⚠️ You have no pending orders awaiting payment, or you've already sent a receipt.",
-        "ask_location": "📍 *Please send your location* for our system to calculate the delivery fee.",
+        "ask_location": "📍 *Please send your location*\n\n(You can click the button below, or use the 📎 attachment icon to manually pick any location on the map) for our system to calculate the delivery fee.",
         "loc_received": "✅ Location received! The system is preparing your bill...",
         "phone_saved": "✅ Phone number saved!",
         "loc_saved": "✅ Location saved!",
@@ -234,6 +234,63 @@ def handle_admin_status_update(call):
             except Exception as e:
                 print(f"Admin status update error: {e}", file=sys.stderr)
                 bot.answer_callback_query(call.id, "❌ មិនអាចភ្ជាប់ទៅកាន់ប្រព័ន្ធបានទេ")
+
+def send_payment_qr(chat_id, caption, image_name):
+    try:
+        with open(image_name, "rb") as photo:
+            bot.send_photo(chat_id, photo, caption=caption, parse_mode="Markdown")
+    except Exception:
+        bot.send_message(chat_id, caption + f"\n\n(⚠️ ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពរូប QR `{image_name}` សូមទូទាត់តាមព័ត៌មានខាងលើ)", parse_mode="Markdown")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('pay_'))
+def handle_payment_selection(call):
+    parts = call.data.split('_', 2)
+    if len(parts) < 3: return
+    method = parts[1]
+    order_id = parts[2]
+    chat_id = str(call.message.chat.id)
+    
+    bot.answer_callback_query(call.id)
+    
+    try:
+        res = requests.get(f"{config.API_BASE_URL}/order", params={"order_id": order_id}, timeout=10)
+        if res.status_code != 200:
+            bot.send_message(chat_id, "❌ រកមិនឃើញវិក្កយបត្រនេះទេ។")
+            return
+            
+        order = res.json()
+        total_str = order.get("total", "$0").replace("$", "").replace(",", "")
+        try: total_usd = float(total_str)
+        except: total_usd = 0.0
+        
+        if method == "cash":
+            requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំការដឹកជញ្ជូន (Cash)"}, timeout=10)
+            bot.send_message(chat_id, f"✅ លោកអ្នកបានជ្រើសរើសការទូទាត់ជាសាច់ប្រាក់ (Cash on Delivery) សម្រាប់វិក្កយបត្រ `{order_id}`។\n🛵 អាហារនឹងរៀបចំដឹកជញ្ជូនទៅកាន់លោកអ្នកឆាប់ៗនេះ។")
+            # Notify kitchen directly
+            admin_group = "-1003740329904"
+            bot.send_message(admin_group, f"🔔 *អតិថិជនជ្រើសរើសទូទាត់សាច់ប្រាក់ (Cash)*\n\n🧾 វិក្កយបត្រ: `{order_id}`\n🛵 សូមរៀបចំដឹកជញ្ជូន!", parse_mode="Markdown")
+            try: bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
+            except: pass
+            
+        elif method == "aba":
+            requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំវិក្កយបត្រ (ABA)"}, timeout=10)
+            msg = f"🏦 *ទូទាត់តាម ABA Bank*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *${total_usd:.2f}*\n• ឈ្មោះគណនី: HEM SINATH\n• លេខគណនី: `086599789`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។"
+            send_payment_qr(chat_id, msg, "aba_qr.jpg")
+            
+        elif method == "usdt":
+            requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំវិក្កយបត្រ (USDT)"}, timeout=10)
+            address = "0xfd3359717d6b3af1fe25aa0edbc0b5e60f977d41"
+            msg = f"🪙 *ទូទាត់តាម USDT (BEP20)*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *{total_usd:.2f} USDT*\n• Network: BNB Smart Chain (BEP20)\n• Address: `{address}`\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។"
+            send_payment_qr(chat_id, msg, "USDT_BSC.jpg")
+            
+        elif method == "alipay":
+            requests.put(f"{config.API_BASE_URL}/orders/status", json={"order_id": order_id, "status": "រង់ចាំវិក្កយបត្រ (Alipay)"}, timeout=10)
+            rmb_amount = total_usd * 7
+            msg = f"🛡️ *ទូទាត់តាម Alipay*\n\n💰 ទឹកប្រាក់ត្រូវបង់: *¥{rmb_amount:.2f} RMB* (អត្រា $1 = 7¥)\n\n📸 ក្រោយពីបង់ប្រាក់រួច សូមផ្ញើរូបភាពវិក្កយបត្រ (Screenshot) មកទីនេះ។"
+            send_payment_qr(chat_id, msg, "Alipay_QR.jpg")
+            
+    except Exception as e:
+        print(f"Payment selection error: {e}")
 
 @bot.message_handler(content_types=['contact'])
 def handle_contact(message):

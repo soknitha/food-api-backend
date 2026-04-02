@@ -1,216 +1,155 @@
 <!DOCTYPE html>
-<html lang="km">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Order Menu - Xiao Yue Xiao Chi</title>
+    <title>Xiao Yue Xiao Chi - Menu</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            --primary: #e67e22; --bg: #f8f9fa; --card-bg: #ffffff; --text: #2d3436;
-        }
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
-        body { background-color: var(--bg); color: var(--text); padding-bottom: 80px; }
-        .header { background: var(--primary); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .header h1 { font-size: 1.2rem; }
-        .menu-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; padding: 15px; max-width: 1200px; margin: auto; }
-        .menu-item { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; display: flex; flex-direction: column; }
-        .menu-item:active { transform: scale(0.98); }
-        .menu-img { width: 100%; height: 140px; object-fit: cover; background: #eee; }
-        .menu-info { padding: 10px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
-        .menu-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 5px; }
-        .menu-price { color: var(--primary); font-weight: bold; font-size: 1.1rem; }
-        .add-btn { background: var(--primary); color: white; border: none; padding: 8px; border-radius: 6px; width: 100%; font-weight: bold; margin-top: 10px; cursor: pointer; }
-        
-        /* Cart Bar */
-        .cart-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 1000; }
-        .cart-info { font-weight: bold; font-size: 1.1rem; }
-        .checkout-btn { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; }
-        .checkout-btn:disabled { background: #ccc; cursor: not-allowed; }
-
-        /* Loading Spinner */
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 50px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body { background-color: #f3f4f6; padding-bottom: 80px; }
+        .qty-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+        .qty-btn.minus { background-color: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; }
+        .qty-btn.plus { background-color: #f0fdf4; color: #22c55e; border: 1px solid #86efac; }
     </style>
 </head>
-<body>
-    <div class="header">
-        <h1 id="shop-title">🍽️ Xiao Yue Xiao Chi</h1>
-    </div>
-    
-    <div id="loading" class="loader"></div>
-    <div class="menu-container" id="menu-container"></div>
+<body class="font-sans antialiased text-gray-800">
 
-    <div class="cart-bar">
-        <div class="cart-info">
-            🛒 <span id="cart-count">0</span> | <span id="cart-total">$0.00</span>
+    <div class="w-full bg-white shadow-sm p-4 sticky top-0 z-10">
+        <h2 class="text-xl font-bold text-center text-red-600">小月小吃 (Xiao Yue Xiao Chi)</h2>
+    </div>
+
+    <div class="p-4 grid grid-cols-2 gap-4" id="menu-container">
+        <!-- Items will be injected here -->
+        <p class="col-span-2 text-center text-gray-500 py-10">កំពុងទាញយកម៉ឺនុយ (Loading)...</p>
+    </div>
+
+    <!-- Bottom Floating Cart -->
+    <div class="fixed bottom-0 w-full bg-white border-t border-gray-200 p-4 shadow-lg flex justify-between items-center" id="cart-bar" style="display: none;">
+        <div>
+            <p class="text-sm text-gray-500">សរុប (Total)</p>
+            <p class="text-lg font-bold text-red-600" id="cart-total">$0.00</p>
         </div>
-        <button id="checkout-btn" class="checkout-btn" disabled onclick="checkout()">Checkout 🚀</button>
+        <button onclick="checkout()" class="bg-red-600 text-white px-6 py-2 rounded-full font-bold shadow-md hover:bg-red-700 transition">
+            បញ្ជាទិញ (Order)
+        </button>
     </div>
 
     <script>
-        let menuData = [];
-        let cart = {};
-        let userProfile = { id: "unknown", name: "Guest", language: "km" };
-
-        const API_BASE = window.location.origin + '/api';
-
-        // Init Telegram Web App
-        const tg = window.Telegram.WebApp;
+        let tg = window.Telegram.WebApp;
         tg.expand();
         
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            userProfile.id = tg.initDataUnsafe.user.id.toString();
-            userProfile.name = tg.initDataUnsafe.user.first_name || "Guest";
-        }
+        let menuData = [];
+        let cart = {};
 
-        // ប្រព័ន្ធឆ្លាតវៃ៖ ទាញយកភាសាដែលភ្ញៀវបានរើសពី Database ដោយផ្ទាល់
-        async function initApp() {
-            if (userProfile.id !== "unknown") {
-                try {
-                    const res = await fetch(`${API_BASE}/users/${userProfile.id}`);
-                    const userData = await res.json();
-                    if (userData && userData.language) {
-                        userProfile.language = userData.language;
-                    }
-                } catch (e) { console.error("Error fetching language:", e); }
-            }
-            await fetchMenu();
-        }
-
+        // Fetch Menu from Backend
         async function fetchMenu() {
             try {
-                // 🔥 Master Fix: បន្ថែម Date.now() ដើម្បីបង្ខំឱ្យទាញយកទិន្នន័យថ្មីជានិច្ច (Bypass Browser Cache)
-                const response = await fetch(`${API_BASE}/menu?t=${Date.now()}`);
-                menuData = await response.json();
+                let res = await fetch('/api/menu');
+                menuData = await res.json();
                 renderMenu();
             } catch (error) {
-                document.getElementById('menu-container').innerHTML = "<p style='text-align:center;width:100%;'>Error loading menu. Please try again.</p>";
-            } finally {
-                document.getElementById('loading').style.display = 'none';
+                document.getElementById('menu-container').innerHTML = `<p class="col-span-2 text-center text-red-500">❌ Error loading menu.</p>`;
             }
         }
 
-        function getLocalizedName(full_name) {
-            // គាំទ្រការបំបែកដោយប្រើសញ្ញា | ឬ / (ឧទាហរណ៍: ភីហ្សា / 披萨 / Pizza)
-            let normalized = (full_name || "Unknown").replace(/\//g, '|'); 
-            const parts = normalized.split('|').map(p => p.trim()).filter(p => p.length > 0);
-            
-            // ប្រើប្រាស់ភាសាដែលទាញបានពី Database ជាជាងពី URL
-            const lang = userProfile.language;
-            
-            if(lang === 'km' && parts.length > 0) return parts[0];
-            if(lang === 'zh' && parts.length > 1) return parts[1];
-            if(lang === 'en') return parts.length > 2 ? parts[2] : (parts.length > 1 ? parts[1] : parts[0]);
-            
-            return parts[0] || full_name; // default fallback (ទាញយកឈ្មោះតែមួយបើ Admin បញ្ចូលតែ ១ ភាសា)
+        function updateCartUI() {
+            let total = 0;
+            let itemCount = 0;
+
+            menuData.forEach(item => {
+                let qty = cart[item.id] || 0;
+                if (qty > 0) {
+                    total += item.price * qty;
+                    itemCount += qty;
+                }
+                
+                let qtySpan = document.getElementById(`qty-${item.id}`);
+                if (qtySpan) qtySpan.innerText = qty;
+            });
+
+            document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('cart-bar').style.display = itemCount > 0 ? 'flex' : 'none';
+        }
+
+        function changeQty(id, delta) {
+            if (!cart[id]) cart[id] = 0;
+            cart[id] += delta;
+            if (cart[id] < 0) cart[id] = 0;
+            updateCartUI();
         }
 
         function renderMenu() {
             const container = document.getElementById('menu-container');
             container.innerHTML = '';
 
-            if (!menuData || menuData.length === 0) {
-                container.innerHTML = "<p style='text-align:center;width:100%;padding:20px;font-size:1.1rem;color:#7f8c8d;'>🙏 <strong>សូមអភ័យទោស!</strong><br>ហាងមិនទាន់បានដាក់លក់មុខម្ហូបនៅឡើយទេ។<br><br>🙏 <strong>Sorry!</strong><br>No menu items are available at the moment.</p>";
-                return;
-            }
-            
             menuData.forEach(item => {
-                const name = getLocalizedName(item.name);
-                const qty = cart[item.id] ? cart[item.id].qty : 0;
+                const imgUrl = item.image_url ? item.image_url : 'https://via.placeholder.com/150?text=Food';
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col";
                 
-                const div = document.createElement('div');
-                div.className = 'menu-item';
-                div.innerHTML = `
-                    <img src="${item.image_url || 'https://via.placeholder.com/150'}" alt="${name}" class="menu-img" loading="lazy">
-                    <div class="menu-info">
-                        <div class="menu-name">${name}</div>
-                        <div class="menu-price">$${(item.price || 0).toFixed(2)}</div>
-                        ${qty > 0 
-                            ? `<button class="add-btn" style="background:#2ecc71;" onclick="addToCart(${item.id})">✅ Added (${qty})</button>` 
-                            : `<button class="add-btn" onclick="addToCart(${item.id})">➕ Add to Order</button>`
-                        }
+                card.innerHTML = `
+                    <div class="h-32 w-full bg-cover bg-center" style="background-image: url('${imgUrl}');"></div>
+                    <div class="p-3 flex flex-col flex-grow justify-between">
+                        <h3 class="font-bold text-sm leading-tight text-gray-800">${item.name}</h3>
+                        <p class="text-red-600 font-semibold mt-1">$${item.price.toFixed(2)}</p>
+                        
+                        <div class="flex items-center justify-between mt-3">
+                            <button class="qty-btn minus" onclick="changeQty(${item.id}, -1)">-</button>
+                            <span class="font-bold" id="qty-${item.id}">0</span>
+                            <button class="qty-btn plus" onclick="changeQty(${item.id}, 1)">+</button>
+                        </div>
                     </div>
                 `;
-                container.appendChild(div);
+                container.appendChild(card);
             });
-            updateCartUI();
-        }
-
-        function addToCart(id) {
-            if (!cart[id]) {
-                const item = menuData.find(i => i.id === id);
-                cart[id] = { ...item, qty: 1, localName: getLocalizedName(item.name) };
-            } else {
-                cart[id].qty += 1;
-            }
-            // Haptic Feedback សម្រាប់អ្នកប្រើទូរស័ព្ទ
-            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
-            renderMenu();
-        }
-
-        function updateCartUI() {
-            let totalQty = 0;
-            let totalPrice = 0;
-            Object.values(cart).forEach(item => {
-                totalQty += item.qty;
-                totalPrice += (item.price * item.qty);
-            });
-            
-            document.getElementById('cart-count').innerText = totalQty;
-            document.getElementById('cart-total').innerText = `$${totalPrice.toFixed(2)}`;
-            document.getElementById('checkout-btn').disabled = totalQty === 0;
         }
 
         async function checkout() {
-            const btn = document.getElementById('checkout-btn');
-            btn.innerText = "Processing...";
-            btn.disabled = true;
+            let orderItems = [];
+            let total = 0;
 
-            let itemsArray = [];
-            let totalPrice = 0;
-            
-            // រៀបចំទម្រង់: Pizza x1 ($8.50)
-            Object.values(cart).forEach(item => {
-                const itemTotal = item.price * item.qty;
-                totalPrice += itemTotal;
-                itemsArray.push(`${item.localName} x${item.qty} ($${itemTotal.toFixed(2)})`);
+            menuData.forEach(item => {
+                let qty = cart[item.id] || 0;
+                if (qty > 0) {
+                    orderItems.push(`${item.name} x${qty}`);
+                    total += item.price * qty;
+                }
             });
-            
-            const orderData = {
-                customer: userProfile.name,
-                chat_id: userProfile.id,
-                items: itemsArray.join(", "),
-                total: `$${totalPrice.toFixed(2)}`,
-                status: "ថ្មី (រង់ចាំការបញ្ជាក់)",
+
+            if (orderItems.length === 0) return;
+
+            let customerName = tg.initDataUnsafe?.user?.first_name || "ភ្ញៀវ (Guest)";
+            let chatId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
+
+            let payload = {
+                customer: customerName,
+                items: orderItems.join(", "),
+                total: `$${total.toFixed(2)}`,
+                chat_id: chatId,
                 redeem_points: 0
             };
 
+            tg.MainButton.text = "កំពុងបញ្ជូន... (Processing)";
+            tg.MainButton.show();
+            tg.MainButton.showProgress();
+
             try {
-                const response = await fetch(`${API_BASE}/miniapp/checkout`, {
+                let res = await fetch('/api/miniapp/checkout', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderData)
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
                 });
-                
-                if (response.ok) {
-                    tg.showAlert("✅ ការបញ្ជាទិញជោគជ័យ! សូមពិនិត្យសារ Telegram របស់អ្នក ដើម្បីធ្វើការទូទាត់ប្រាក់។", () => {
-                        tg.close();
-                    });
-                } else {
-                    tg.showAlert("❌ មានកំហុសក្នុងការបញ្ជាទិញ។");
-                    btn.innerText = "Checkout 🚀";
-                    btn.disabled = false;
+                if (res.ok) {
+                    tg.close(); // បិទ Mini App ពេលជោគជ័យ
                 }
             } catch (err) {
-                tg.showAlert("❌ សូមពិនិត្យប្រព័ន្ធអ៊ីនធឺណិតរបស់អ្នក។");
-                btn.innerText = "Checkout 🚀";
-                btn.disabled = false;
+                alert("មានបញ្ហាក្នុងការភ្ជាប់ទៅកាន់ប្រព័ន្ធ!");
+                tg.MainButton.hideProgress();
             }
         }
 
-        // ចាប់ផ្តើមទាញយកទិន្នន័យ
-        initApp();
+        fetchMenu();
     </script>
 </body>
 </html>
